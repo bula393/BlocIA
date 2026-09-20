@@ -1,0 +1,421 @@
+openapi: 3.1.0
+info:
+  title: Modulo de Usuario API
+  version: 0.1.0
+  description: Contract for login, registration, profile, and technical profile flows.
+paths:
+  /auth/login:
+    post:
+      summary: Login with mail and contrasenia
+      operationId: loginWithPassword
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated user session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '401':
+          description: Invalid credentials; repeated failures do not lock the account in this feature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/google/start:
+    get:
+      summary: Start Google login or registration flow
+      operationId: startGoogleAuth
+      tags: [Auth]
+      responses:
+        '302':
+          description: Redirects the user to Google identity flow
+  /auth/google/complete:
+    post:
+      summary: Complete Google login or registration flow
+      operationId: completeGoogleAuth
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleCompleteRequest'
+      responses:
+        '200':
+          description: Google login completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '202':
+          description: Additional required fields are missing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationCompletionRequiredResponse'
+        '409':
+          description: Google identity or mail conflicts with another account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/register:
+    post:
+      summary: Register with mail, contrasenia, edad, and profesion
+      operationId: registerUser
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '400':
+          description: Invalid registration data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '409':
+          description: Mail already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/register/complete-google:
+    post:
+      summary: Complete missing required fields for Google registration
+      operationId: completeGoogleRegistration
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleRegistrationCompletionRequest'
+      responses:
+        '201':
+          description: Google account completed and session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '400':
+          description: Missing or invalid required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /profile:
+    get:
+      summary: Get authenticated user profile
+      operationId: getProfile
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      summary: Update editable profile fields
+      operationId: updateProfile
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Invalid profile data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '409':
+          description: Updated mail conflicts with another account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /technical-profile/providers:
+    get:
+      summary: List available AI providers and models with user token status
+      operationId: listTechnicalProviders
+      tags: [TechnicalProfile]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Providers, models, and current user's token status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers]
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProviderWithModels'
+  /technical-profile/tokens:
+    post:
+      summary: Add or replace a provider token for the current user
+      operationId: saveProviderToken
+      tags: [TechnicalProfile]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderTokenSaveRequest'
+      responses:
+        '200':
+          description: Provider token status after save
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderTokenStatus'
+        '400':
+          description: Invalid provider or token data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /technical-profile/tokens/{providerId}:
+    delete:
+      summary: Remove the current user's token for a provider
+      operationId: removeProviderToken
+      tags: [TechnicalProfile]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Token removed
+        '404':
+          description: Provider token not configured for current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: access-token
+  schemas:
+    LoginRequest:
+      type: object
+      required: [mail, password]
+      properties:
+        mail:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+    RegisterRequest:
+      type: object
+      required: [mail, password, age, profession]
+      properties:
+        mail:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 10
+        age:
+          type: integer
+          minimum: 1
+        profession:
+          type: string
+          minLength: 1
+    GoogleCompleteRequest:
+      type: object
+      required: [code, state]
+      properties:
+        code:
+          type: string
+        state:
+          type: string
+    GoogleRegistrationCompletionRequest:
+      type: object
+      required: [registrationToken, age, profession]
+      properties:
+        registrationToken:
+          type: string
+        age:
+          type: integer
+          minimum: 1
+        profession:
+          type: string
+          minLength: 1
+    RegistrationCompletionRequiredResponse:
+      type: object
+      required: [registrationToken, missingFields, prefilledFields]
+      properties:
+        registrationToken:
+          type: string
+        missingFields:
+          type: array
+          items:
+            type: string
+            enum: [mail, age, profession]
+        prefilledFields:
+          type: object
+          additionalProperties: true
+    AuthSessionResponse:
+      type: object
+      required: [user, accessToken, expiresInSeconds]
+      properties:
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        accessToken:
+          type: string
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+    UserProfile:
+      type: object
+      required: [mail, age, profession, loginProviderStatus, technicalProfileStatus]
+      properties:
+        mail:
+          type: string
+          format: email
+        age:
+          type: integer
+          minimum: 1
+        profession:
+          type: string
+        displayName:
+          type: string
+        loginProviderStatus:
+          type: string
+          enum: [password, google, password-and-google]
+        technicalProfileStatus:
+          type: string
+          enum: [not-configured, partially-configured, configured, requires-attention]
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        age:
+          type: integer
+          minimum: 1
+        profession:
+          type: string
+          minLength: 1
+        displayName:
+          type: string
+    ProviderWithModels:
+      type: object
+      required: [providerId, name, status, tokenStatus, models]
+      properties:
+        providerId:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [available, unavailable, deprecated]
+        tokenStatus:
+          $ref: '#/components/schemas/ProviderTokenStatus'
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/AIModel'
+    AIModel:
+      type: object
+      required: [modelId, displayName, availabilityStatus]
+      properties:
+        modelId:
+          type: string
+        displayName:
+          type: string
+        availabilityStatus:
+          type: string
+          enum: [available, unavailable, deprecated]
+        capabilities:
+          type: array
+          items:
+            type: string
+    ProviderTokenSaveRequest:
+      type: object
+      required: [providerId, token]
+      properties:
+        providerId:
+          type: string
+        token:
+          type: string
+          minLength: 1
+    ProviderTokenStatus:
+      type: object
+      required: [providerId, status]
+      properties:
+        providerId:
+          type: string
+        status:
+          type: string
+          enum: [not-configured, configured, invalid, requires-attention]
+        maskedTokenLabel:
+          type: string
+        lastValidatedAt:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    ValidationErrorResponse:
+      type: object
+      required: [message, fields]
+      properties:
+        message:
+          type: string
+        fields:
+          type: object
+          additionalProperties:
+            type: string
