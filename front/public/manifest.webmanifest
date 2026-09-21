@@ -1,0 +1,9 @@
+{
+  "name": "BlocIA Usuario",
+  "short_name": "BlocIA",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#16324f",
+  "icons": []
+}

@@ -23,6 +23,22 @@ main user-module sections as pages while keeping the application installable and
 - Server-rendered frontend: rejected because it does not match the supplied frontend architecture.
 - Plain JavaScript frontend: rejected because the requested architecture requires TypeScript.
 
+## Decision: Visual work is governed by `apartadoDIseñoGraficoBlocIA.md`
+
+**Rationale**: The visual system is normative and explicitly says that if a visual choice is not
+listed there, it must not be used. Planning must therefore add visual phases for tokens,
+structural layout, component application, responsive adaptation, and visual QA before further UI
+work.
+
+**Alternatives considered**:
+
+- Keep the current generic form layout: rejected because the visual system bans floating card-like
+  layouts as primary structure and requires a block chassis.
+- Treat the visual system as optional styling guidance: rejected because the constitution requires
+  respecting `apartadoDIseñoGraficoBlocIA.md` for web design.
+- Add decorative gradients or new colors to modernize the UI: rejected because the palette is
+  closed and gradients are prohibited.
+
 ## Decision: TanStack Query for server cache and Zustand for local-only UI state
 
 **Rationale**: Profile data, authentication status, AI providers, AI models, and token status are

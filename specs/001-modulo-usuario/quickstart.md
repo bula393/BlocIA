@@ -14,6 +14,8 @@ implement the feature.
 ## Validation Order
 
 Run validations in three lanes for each story: Back, Front, then Testing evidence.
+Run visual validation after each frontend story using [visual-design.md](visual-design.md) and
+`apartadoDIseñoGraficoBlocIA.md`.
 
 ## Story 1: Login de usuario
 
@@ -60,7 +62,7 @@ able to log in successfully with valid credentials afterward.
 - Unit coverage for credential validation and login result states.
 - Integration coverage for successful login, invalid login, repeated failed attempts without
   account lockout, and Google-linked login.
-- Contract coverage for `/auth/login`, `/auth/google/start`, and `/auth/google/complete`.
+- Contract coverage for `/auth/login`, `/auth/google/start`, `/auth/google/callback`, and `/auth/google/session`.
 
 ## Story 2: Registro de cuenta
 
@@ -201,5 +203,8 @@ Expected outcome: token is removed for the current user only.
 - Curl evidence must be captured for every endpoint added by the feature.
 - Backend tests, frontend tests, contract tests, and end-to-end validations must pass before moving
   from one task group to the next.
+- Visual QA evidence must confirm the user module follows [visual-design.md](visual-design.md):
+  approved palette only, no pill radius, no gradients, no floating cards as primary layout, no
+  diffuse shadows, responsive cuts checked, and text fitting verified.
 - Any fix required to make the system work must be documented in the relevant task notes or project
   documentation.

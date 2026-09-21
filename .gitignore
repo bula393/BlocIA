@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# Node / TypeScript
+node_modules/
+front/dist/
+front/build/
+coverage/
+*.tsbuildinfo
+*.log
+front/test-results/
+front/playwright-report/
+
+# Environment
+.env
+.env.*
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
