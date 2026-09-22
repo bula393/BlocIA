@@ -5,6 +5,7 @@ import { Login } from '../pages/Login';
 import { Register } from '../pages/Register';
 import { Perfil } from '../pages/Perfil';
 import { PerfilTecnico } from '../pages/PerfilTecnico';
+import { NuevoChat } from '../pages/NuevoChat';
 import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
 import { GoogleCallback } from '../pages/GoogleCallback';
 
@@ -37,5 +38,6 @@ export function Router() {
   if (!isPublicRoute(path) && getCurrentJwtStatus() !== 'valid') return <ProtectedRouteGuard requestedPath={path} />;
   if (path === '/perfil') return <Perfil />;
   if (path === '/perfil-tecnico') return <PerfilTecnico />;
+  if (path === '/nuevo-chat') return <NuevoChat />;
   return <ProtectedRouteGuard requestedPath={path} />;
 }

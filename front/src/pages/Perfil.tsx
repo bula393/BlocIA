@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { ProfessionField } from '../components/auth/ProfessionField';
 import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
 import { CajonPerfil } from '../components/overlay/CajonPerfil';
 import { usePerfil } from '../features/usuario/usePerfil';
@@ -34,7 +35,7 @@ export function Perfil() {
       )}
       <form className="bloq-form" onSubmit={submit}>
         <label>Edad<input type="number" min={1} value={age} onChange={(event) => setAge(event.target.value)} /></label>
-        <label>Profesion<input value={profession} onChange={(event) => setProfession(event.target.value)} /></label>
+        <ProfessionField value={profession} onChange={setProfession} />
         <label>Nombre visible<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
         <div className="bloq-actions">
           <button type="submit" data-primary="true">Guardar cambios</button>

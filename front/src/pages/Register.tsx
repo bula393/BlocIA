@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { ProfessionField } from '../components/auth/ProfessionField';
 import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
 import { useRegister } from '../features/usuario/useRegister';
 
@@ -30,7 +31,7 @@ export function Register() {
         <label>Contraseña<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
         <small>{strongPasswordHint(password)}</small>
         <label>Edad<input type="number" min={1} value={age} onChange={(event) => setAge(Number(event.target.value))} required /></label>
-        <label>Profesión<input value={profession} onChange={(event) => setProfession(event.target.value)} required /></label>
+        <ProfessionField value={profession} onChange={setProfession} required />
         <div className="bloq-actions">
           <button type="submit" data-primary="true">Crear cuenta</button>
         </div>

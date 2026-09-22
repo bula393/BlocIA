@@ -1,0 +1,19 @@
+language: es
+embedding_model: intfloat/multilingual-e5-small
+embedding_prefix_query: 'query: '
+classifier: LogisticRegression
+labels: [no_personal, personal_informativa, personal_decision]
+primary_grouping:
+  no_personal: no_personal
+  personal_informativa: personal
+  personal_decision: personal
+test_size: 0.20
+validation_size: 0.10
+random_state: 42
+class_weight: balanced
+max_iter: 2000
+confidence_threshold: 0.70
+review_threshold: 0.55
+quality_gate:
+  macro_f1: 0.80
+  personal_decision_recall: 0.85

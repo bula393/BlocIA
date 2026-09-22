@@ -1,13 +1,16 @@
 import { apiRequest, setAccessToken } from './client';
 import { setRouteJwt } from '../app/routeGuard';
 import type { AuthSessionResponse } from '../types/dominio';
+import { queryClient } from '../app/queryClient';
 
 export function rememberSession(session: AuthSessionResponse) {
+  queryClient.removeQueries();
   setAccessToken(session.accessToken);
   setRouteJwt(session.accessToken);
 }
 
 export function forgetSession() {
+  queryClient.removeQueries();
   setAccessToken(null);
   setRouteJwt(null);
 }

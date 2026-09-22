@@ -1,11 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './queryClient';
 import { useEffect, useState, type ReactNode } from 'react';
 import { forgetSession, restoreSession } from '../api/auth';
 import { getCurrentJwtStatus } from './routeGuard';
 import '../tokens/visual.css';
 import '../tokens/typography.css';
-
-const queryClient = new QueryClient();
+import '../tokens/chat.css';
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);

@@ -1,38 +1,44 @@
 from fastapi import Cookie, Depends, Header, HTTPException
 
 from app.application.user.session import parse_access_token
-from app.infrastructure.user.postgres_repositories import (
-    AIModelRepositoryImpl,
-    AIProviderRepositoryImpl,
-    ExternalLoginLinkRepositoryImpl,
-    PasswordCredentialRepositoryImpl,
-    ProviderTokenRepositoryImpl,
-    UserRepositoryImpl,
+from app.infrastructure.database import get_database
+from app.infrastructure.user.sqlite_repositories import (
+    ModelRepository,
+    ProviderRepository,
+    ExternalLinkRepository,
+    CredentialRepository,
+    TokenRepository,
+    UsageRepository,
+    UserRepository,
 )
 
 
-def user_repo() -> UserRepositoryImpl:
-    return UserRepositoryImpl()
+def user_repo(database=Depends(get_database)):
+    return UserRepository(database)
 
 
-def credential_repo() -> PasswordCredentialRepositoryImpl:
-    return PasswordCredentialRepositoryImpl()
+def credential_repo(database=Depends(get_database)):
+    return CredentialRepository(database)
 
 
-def external_link_repo() -> ExternalLoginLinkRepositoryImpl:
-    return ExternalLoginLinkRepositoryImpl()
+def external_link_repo(database=Depends(get_database)):
+    return ExternalLinkRepository(database)
 
 
-def provider_repo() -> AIProviderRepositoryImpl:
-    return AIProviderRepositoryImpl()
+def provider_repo(database=Depends(get_database)):
+    return ProviderRepository(database)
 
 
-def model_repo() -> AIModelRepositoryImpl:
-    return AIModelRepositoryImpl()
+def model_repo(database=Depends(get_database)):
+    return ModelRepository(database)
 
 
-def token_repo() -> ProviderTokenRepositoryImpl:
-    return ProviderTokenRepositoryImpl()
+def token_repo(database=Depends(get_database)):
+    return TokenRepository(database)
+
+
+def usage_repo(database=Depends(get_database)):
+    return UsageRepository(database)
 
 
 def current_user_mail(

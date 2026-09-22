@@ -36,6 +36,21 @@ export interface ProviderWithModels {
   providerId: string;
   name: string;
   status: ProviderStatus;
+  description?: string | null;
   tokenStatus: ProviderTokenStatus;
   models: AIModel[];
+}
+
+export interface AvailableModelsResponse {
+  providerId: string;
+  source: 'token' | 'free' | 'catalog';
+  message: string;
+  models: AIModel[];
+}
+
+export interface UsageSummary {
+  chatMessages: number;
+  modelCatalogRequests: number;
+  configuredProviders: number;
+  lastActivityAt: string | null;
 }

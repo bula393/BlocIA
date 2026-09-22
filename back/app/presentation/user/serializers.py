@@ -38,6 +38,7 @@ def provider_schema(provider: AIProvider, models: list[AIModel], status: dict) -
         "providerId": provider.provider_id,
         "name": provider.name,
         "status": provider.status.value,
+        "description": provider.description,
         "tokenStatus": status,
         "models": [model_schema(model) for model in models],
     }

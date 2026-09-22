@@ -1,4 +1,5 @@
 import base64
+from contextlib import nullcontext
 import binascii
 import hashlib
 import hmac
@@ -20,6 +21,10 @@ class CompleteGoogleRegistration:
         self.links = links
 
     def execute(self, registration_token: str, age: int, profession: str) -> tuple[User, str]:
+        with getattr(self.users, "transaction", nullcontext)():
+            return self._execute(registration_token, age, profession)
+
+    def _execute(self, registration_token: str, age: int, profession: str) -> tuple[User, str]:
         if not registration_token.startswith("google:"):
             raise ValueError("Google registration token is invalid")
         try:

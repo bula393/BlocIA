@@ -1,8 +1,12 @@
 import { apiRequest } from './client';
-import type { ProviderTokenStatus, ProviderWithModels } from '../types/dominio';
+import type { AvailableModelsResponse, ProviderTokenStatus, ProviderWithModels } from '../types/dominio';
 
 export function listTechnicalProviders() {
   return apiRequest<{ providers: ProviderWithModels[] }>('/technical-profile/providers');
+}
+
+export function listAvailableModels(providerId: string) {
+  return apiRequest<AvailableModelsResponse>(`/technical-profile/providers/${providerId}/models`);
 }
 
 export function saveProviderToken(providerId: string, token: string) {

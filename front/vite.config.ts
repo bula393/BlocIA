@@ -1,16 +1,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const backend = process.env.BLOCIA_API_URL ?? 'http://127.0.0.1:8000';
+
 export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: backend,
         rewrite: (path) => path.replace(/^\/api/, '')
       },
-      '/profile': 'http://localhost:8000',
-      '/technical-profile': 'http://localhost:8000'
+      '/profile': backend,
+      '/technical-profile': backend
     }
   },
   test: {

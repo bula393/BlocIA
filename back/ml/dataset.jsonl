@@ -1,0 +1,370 @@
+{"text": "¿Qué es una API REST?", "label": "no_personal"}
+{"text": "¿Cómo conecto un motor paso a paso a un Arduino Mega?", "label": "no_personal"}
+{"text": "¿Cuál es la diferencia entre RAM y almacenamiento?", "label": "no_personal"}
+{"text": "¿Cómo hago una consulta JOIN en SQL?", "label": "no_personal"}
+{"text": "¿Qué significa que una función sea derivable?", "label": "no_personal"}
+{"text": "¿Cuánto es 25 por 18?", "label": "no_personal"}
+{"text": "¿Cómo se instala Python en Windows?", "label": "no_personal"}
+{"text": "¿Qué ventajas tiene usar Docker?", "label": "no_personal"}
+{"text": "¿Qué es la fotosíntesis?", "label": "no_personal"}
+{"text": "¿Cómo traduzco esta frase al inglés?", "label": "no_personal"}
+{"text": "¿Qué modelo de Arduino tiene más pines?", "label": "no_personal"}
+{"text": "¿Cómo arreglo este error de Java?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre HTTP y HTTPS?", "label": "no_personal"}
+{"text": "¿Cómo funciona una resistencia eléctrica?", "label": "no_personal"}
+{"text": "¿Qué materiales necesito para una granja de hierro?", "label": "no_personal"}
+{"text": "¿Podés resumir este texto?", "label": "no_personal"}
+{"text": "¿Qué es una matriz LED?", "label": "no_personal"}
+{"text": "¿Cómo creo una tabla en MySQL?", "label": "no_personal"}
+{"text": "¿Qué significa la palabra “ambiguo”?", "label": "no_personal"}
+{"text": "¿Cómo calculo la velocidad final en MRUV?", "label": "no_personal"}
+{"text": "¿Qué es un transistor?", "label": "no_personal"}
+{"text": "¿Cómo configuro una red LAN?", "label": "no_personal"}
+{"text": "¿Qué diferencias hay entre una API gratuita y una paga?", "label": "no_personal"}
+{"text": "¿Cómo convierto un archivo WAV a MP3?", "label": "no_personal"}
+{"text": "¿Qué es un marco teórico?", "label": "no_personal"}
+{"text": "¿Qué factores debería considerar antes de cambiar de trabajo?", "label": "personal_informativa"}
+{"text": "¿Podés ayudarme a analizar mis gastos mensuales?", "label": "personal_informativa"}
+{"text": "¿Qué opciones tengo si no me gusta mi carrera?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo organizar mejor mi tiempo?", "label": "personal_informativa"}
+{"text": "¿Qué preguntas debería hacer antes de alquilar un departamento?", "label": "personal_informativa"}
+{"text": "¿Cómo comparo dos ofertas laborales?", "label": "personal_informativa"}
+{"text": "¿Qué riesgos tiene pedir un préstamo?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo preparar una conversación difícil?", "label": "personal_informativa"}
+{"text": "¿Qué información debería reunir antes de comprar una PC?", "label": "personal_informativa"}
+{"text": "¿Me ayudás a ordenar las ventajas y desventajas de mudarme?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo saber si un curso me conviene?", "label": "personal_informativa"}
+{"text": "¿Qué alternativas tengo para ahorrar dinero?", "label": "personal_informativa"}
+{"text": "¿Cómo analizo si este proyecto es viable?", "label": "personal_informativa"}
+{"text": "¿Qué debería revisar en un contrato antes de firmarlo?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo hablar con mi familia sobre este problema?", "label": "personal_informativa"}
+{"text": "¿Qué carrera debería estudiar?", "label": "personal_decision"}
+{"text": "Elegí por mí entre estas dos computadoras.", "label": "personal_decision"}
+{"text": "¿Debería aceptar este trabajo?", "label": "personal_decision"}
+{"text": "¿Me conviene mudarme o quedarme donde estoy?", "label": "personal_decision"}
+{"text": "Decime qué celular tengo que comprar.", "label": "personal_decision"}
+{"text": "¿Debería terminar mi relación?", "label": "personal_decision"}
+{"text": "¿Qué opción elegirías en mi lugar?", "label": "personal_decision"}
+{"text": "No sé qué hacer: ¿renuncio o sigo en este trabajo?", "label": "personal_decision"}
+{"text": "Elegí una ciudad para que me vaya a vivir.", "label": "personal_decision"}
+{"text": "¿Compro ahora o espero?", "label": "personal_decision"}
+{"text": "Decidí qué materia tengo que rendir primero.", "label": "personal_decision"}
+{"text": "¿Acepto la propuesta de mi amigo?", "label": "personal_decision"}
+{"text": "¿Cuál de estos planes debería contratar?", "label": "personal_decision"}
+{"text": "Decime si tengo que comprar esta casa.", "label": "personal_decision"}
+{"text": "¿Debería estudiar programación o diseño?", "label": "personal_decision"}
+{"text": "¿Qué nombre le pongo a mi emprendimiento?", "label": "personal_decision"}
+{"text": "Elegí el mejor regalo para mi pareja.", "label": "personal_decision"}
+{"text": "¿Me conviene invertir mis ahorros en esta opción?", "label": "personal_decision"}
+{"text": "¿Tengo que pedir disculpas o dejar pasar el tema?", "label": "personal_decision"}
+{"text": "¿Qué hago: viajo este año o ahorro el dinero?", "label": "personal_decision"}
+{"text": "¿Qué ventajas tiene estudiar programación?", "label": "no_personal"}
+{"text": "¿Qué ventajas tiene para mí estudiar programación?", "label": "personal_informativa"}
+{"text": "¿Debería estudiar programación?", "label": "personal_decision"}
+{"text": "¿Qué opinás sobre cambiar de trabajo?", "label": "personal_informativa"}
+{"text": "Decime si cambio de trabajo.", "label": "personal_decision"}
+{"text": "¿Podés comparar estas tres opciones?", "label": "personal_informativa"}
+{"text": "Elegí la mejor de estas tres opciones por mí.", "label": "personal_decision"}
+{"text": "¿Cuál es el mejor celular del mercado?", "label": "no_personal"}
+{"text": "¿Cuál es el mejor celular para mí?", "label": "personal_informativa"}
+{"text": "Decime qué celular compro yo.", "label": "personal_decision"}
+{"text": "¿Qué es una variable en programación?", "label": "no_personal"}
+{"text": "¿Cómo se declara una clase en Java?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre una lista y un arreglo?", "label": "no_personal"}
+{"text": "¿Cómo se calcula el área de un círculo?", "label": "no_personal"}
+{"text": "¿Qué es la ley de Ohm?", "label": "no_personal"}
+{"text": "¿Cómo funciona un sensor ultrasónico?", "label": "no_personal"}
+{"text": "¿Qué significa compilar un programa?", "label": "no_personal"}
+{"text": "¿Qué es una base de datos relacional?", "label": "no_personal"}
+{"text": "¿Cómo se crea una clave primaria en SQL?", "label": "no_personal"}
+{"text": "¿Qué es una función cuadrática?", "label": "no_personal"}
+{"text": "¿Cómo se resuelve una ecuación de segundo grado?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre masa y peso?", "label": "no_personal"}
+{"text": "¿Cómo se produce una reacción química?", "label": "no_personal"}
+{"text": "¿Qué es el número atómico?", "label": "no_personal"}
+{"text": "¿Cómo se mide la tensión de una batería?", "label": "no_personal"}
+{"text": "¿Qué es un circuito en serie?", "label": "no_personal"}
+{"text": "¿Cómo se usa un multímetro?", "label": "no_personal"}
+{"text": "¿Qué significa que una señal sea analógica?", "label": "no_personal"}
+{"text": "¿Qué es PWM en Arduino?", "label": "no_personal"}
+{"text": "¿Cómo se conecta un display LCD?", "label": "no_personal"}
+{"text": "¿Qué es una API?", "label": "no_personal"}
+{"text": "¿Cómo se envía una petición POST?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre JSON y XML?", "label": "no_personal"}
+{"text": "¿Cómo se protege una contraseña en una aplicación?", "label": "no_personal"}
+{"text": "¿Qué es una función hash?", "label": "no_personal"}
+{"text": "¿Cómo funciona el cifrado AES?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre cifrado simétrico y asimétrico?", "label": "no_personal"}
+{"text": "¿Qué es una firma digital?", "label": "no_personal"}
+{"text": "¿Cómo se configura un puerto en un servidor?", "label": "no_personal"}
+{"text": "¿Qué es una dirección IP privada?", "label": "no_personal"}
+{"text": "¿Cómo se calcula una máscara de subred?", "label": "no_personal"}
+{"text": "¿Qué función cumple un router?", "label": "no_personal"}
+{"text": "¿Qué es el protocolo UDP?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre TCP y UDP?", "label": "no_personal"}
+{"text": "¿Cómo se instala una dependencia de Node.js?", "label": "no_personal"}
+{"text": "¿Qué es un entorno virtual de Python?", "label": "no_personal"}
+{"text": "¿Cómo se ejecuta un proyecto de Spring Boot?", "label": "no_personal"}
+{"text": "¿Qué es una entidad en JPA?", "label": "no_personal"}
+{"text": "¿Cómo se define una relación uno a muchos?", "label": "no_personal"}
+{"text": "¿Qué significa una migración de base de datos?", "label": "no_personal"}
+{"text": "¿Cómo se escribe una consulta SELECT?", "label": "no_personal"}
+{"text": "¿Qué es una transacción en una base de datos?", "label": "no_personal"}
+{"text": "¿Cómo se ordenan resultados en SQL?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre INNER JOIN y LEFT JOIN?", "label": "no_personal"}
+{"text": "¿Cómo se capturan excepciones en Java?", "label": "no_personal"}
+{"text": "¿Qué es una interfaz en programación?", "label": "no_personal"}
+{"text": "¿Qué significa herencia en programación orientada a objetos?", "label": "no_personal"}
+{"text": "¿Cómo se usa un constructor?", "label": "no_personal"}
+{"text": "¿Qué es una expresión regular?", "label": "no_personal"}
+{"text": "¿Cómo se lee un archivo de texto en Python?", "label": "no_personal"}
+{"text": "¿Qué es un algoritmo de ordenamiento?", "label": "no_personal"}
+{"text": "¿Cómo funciona la búsqueda binaria?", "label": "no_personal"}
+{"text": "¿Qué es la complejidad temporal?", "label": "no_personal"}
+{"text": "¿Cómo se representa un grafo?", "label": "no_personal"}
+{"text": "¿Qué es una cola circular?", "label": "no_personal"}
+{"text": "¿Cómo se calcula un promedio ponderado?", "label": "no_personal"}
+{"text": "¿Qué es la regla de la cadena?", "label": "no_personal"}
+{"text": "¿Cómo se deriva un polinomio?", "label": "no_personal"}
+{"text": "¿Qué significa integrar una función?", "label": "no_personal"}
+{"text": "¿Cómo se calcula la probabilidad de un evento?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre media y mediana?", "label": "no_personal"}
+{"text": "¿Cómo se interpreta una desviación estándar?", "label": "no_personal"}
+{"text": "¿Qué es una variable aleatoria?", "label": "no_personal"}
+{"text": "¿Cómo se construye un gráfico de barras?", "label": "no_personal"}
+{"text": "¿Qué es el método científico?", "label": "no_personal"}
+{"text": "¿Cómo se redacta una hipótesis?", "label": "no_personal"}
+{"text": "¿Qué funciones cumple un marco teórico?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre una fuente primaria y una secundaria?", "label": "no_personal"}
+{"text": "¿Cómo se cita un libro en formato APA?", "label": "no_personal"}
+{"text": "¿Qué es una técnica de estudio activa?", "label": "no_personal"}
+{"text": "¿Cómo funciona la memoria RAM?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre SSD y HDD?", "label": "no_personal"}
+{"text": "¿Qué es una tarjeta gráfica?", "label": "no_personal"}
+{"text": "¿Cómo se mide la resolución de una pantalla?", "label": "no_personal"}
+{"text": "¿Qué significa que un monitor tenga 144 Hz?", "label": "no_personal"}
+{"text": "¿Cómo se crea una copia de seguridad?", "label": "no_personal"}
+{"text": "¿Qué es un sistema operativo?", "label": "no_personal"}
+{"text": "¿Cómo se comprime una carpeta?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre un proceso y un hilo?", "label": "no_personal"}
+{"text": "¿Qué es la memoria caché?", "label": "no_personal"}
+{"text": "¿Cómo se generan aldeanos en Minecraft?", "label": "no_personal"}
+{"text": "¿Qué materiales hacen falta para un portal al Nether?", "label": "no_personal"}
+{"text": "¿Cómo funciona una granja de hierro?", "label": "no_personal"}
+{"text": "¿Qué es el nivel de experiencia en Minecraft?", "label": "no_personal"}
+{"text": "¿Cómo se domestica un lobo en Minecraft?", "label": "no_personal"}
+{"text": "¿Qué es un nodo RigidBody2D en Godot?", "label": "no_personal"}
+{"text": "¿Cómo se detecta una colisión en Godot 4?", "label": "no_personal"}
+{"text": "¿Qué es una escena en Godot?", "label": "no_personal"}
+{"text": "¿Cómo se reproduce una animación en Godot?", "label": "no_personal"}
+{"text": "¿Qué significa que un cuerpo tenga gravedad cero?", "label": "no_personal"}
+{"text": "¿Cómo se calcula la velocidad en MRUV?", "label": "no_personal"}
+{"text": "¿Qué es el momento de una fuerza?", "label": "no_personal"}
+{"text": "¿Cómo se aplica la segunda ley de Newton?", "label": "no_personal"}
+{"text": "¿Qué diferencia hay entre energía cinética y potencial?", "label": "no_personal"}
+{"text": "¿Cómo se calcula la resistencia equivalente?", "label": "no_personal"}
+{"text": "¿Qué es la inducción electromagnética?", "label": "no_personal"}
+{"text": "¿Cómo se comporta un diodo en polarización directa?", "label": "no_personal"}
+{"text": "¿Qué es un transformador eléctrico?", "label": "no_personal"}
+{"text": "¿Cómo se mide la continuidad con un tester?", "label": "no_personal"}
+{"text": "¿Qué significa que un componente esté en corto?", "label": "no_personal"}
+{"text": "¿Qué factores debería evaluar antes de cambiar de empleo?", "label": "personal_informativa"}
+{"text": "¿Me ayudás a ordenar mis prioridades para este mes?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo comparar dos carreras que me interesan?", "label": "personal_informativa"}
+{"text": "¿Qué preguntas conviene hacer en una entrevista laboral?", "label": "personal_informativa"}
+{"text": "¿Cómo analizo mis gastos sin olvidarme de nada?", "label": "personal_informativa"}
+{"text": "¿Qué información tendría que reunir antes de mudarme?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo saber qué tareas me están quitando más tiempo?", "label": "personal_informativa"}
+{"text": "¿Qué aspectos debería revisar de mi rutina de estudio?", "label": "personal_informativa"}
+{"text": "¿Me ayudás a entender por qué no llego a fin de mes?", "label": "personal_informativa"}
+{"text": "¿Qué opciones tengo para organizar una deuda?", "label": "personal_informativa"}
+{"text": "¿Cómo comparo el costo real de alquilar y comprar?", "label": "personal_informativa"}
+{"text": "¿Qué debería preguntarle a un médico en una consulta?", "label": "personal_informativa"}
+{"text": "¿Cómo registro mis síntomas para explicarlos mejor?", "label": "personal_informativa"}
+{"text": "¿Qué información necesito antes de empezar a entrenar?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo preparar una conversación con mi jefe?", "label": "personal_informativa"}
+{"text": "¿Qué alternativas tengo si mi horario laboral me complica estudiar?", "label": "personal_informativa"}
+{"text": "¿Cómo ordeno las ventajas y desventajas de este proyecto?", "label": "personal_informativa"}
+{"text": "¿Qué riesgos debería analizar antes de asociarme con alguien?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo evaluar si una propuesta es confiable?", "label": "personal_informativa"}
+{"text": "¿Qué datos necesito para comparar dos préstamos?", "label": "personal_informativa"}
+{"text": "¿Me ayudás a analizar una discusión que tuve con un amigo?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo expresar mis límites sin generar una pelea?", "label": "personal_informativa"}
+{"text": "¿Qué temas debería conversar con mi pareja sobre el futuro?", "label": "personal_informativa"}
+{"text": "¿Cómo distingo una crítica útil de un comentario hiriente?", "label": "personal_informativa"}
+{"text": "¿Qué puedo observar para entender si una relación me hace bien?", "label": "personal_informativa"}
+{"text": "¿Cómo preparo una charla para pedir una disculpa?", "label": "personal_informativa"}
+{"text": "¿Qué alternativas tengo para resolver un conflicto familiar?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo explicar lo que necesito sin sonar agresivo?", "label": "personal_informativa"}
+{"text": "¿Qué debería considerar antes de volver a hablarle a alguien?", "label": "personal_informativa"}
+{"text": "¿Cómo analizo si estoy aceptando demasiados compromisos?", "label": "personal_informativa"}
+{"text": "¿Qué información conviene revisar antes de comprar una computadora?", "label": "personal_informativa"}
+{"text": "¿Cómo comparo dos teléfonos según mi uso?", "label": "personal_informativa"}
+{"text": "¿Qué debería medir para saber si mi conexión a internet alcanza?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo revisar si una reparación quedó bien hecha?", "label": "personal_informativa"}
+{"text": "¿Qué preguntas debo hacerle a un vendedor de autos usados?", "label": "personal_informativa"}
+{"text": "¿Cómo evalúo el costo de mantenimiento de una moto?", "label": "personal_informativa"}
+{"text": "¿Qué aspectos debería mirar antes de firmar un alquiler?", "label": "personal_informativa"}
+{"text": "¿Cómo comparo las condiciones de dos seguros?", "label": "personal_informativa"}
+{"text": "¿Qué documentación debería preparar para un trámite?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo organizar los papeles importantes de mi familia?", "label": "personal_informativa"}
+{"text": "¿Qué pasos me conviene seguir para buscar mi primer trabajo?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo mejorar mi currículum para un puesto técnico?", "label": "personal_informativa"}
+{"text": "¿Qué habilidades debería identificar antes de elegir un curso?", "label": "personal_informativa"}
+{"text": "¿Cómo analizo si tengo tiempo suficiente para una capacitación?", "label": "personal_informativa"}
+{"text": "¿Qué puedo hacer para estudiar cuando me cuesta concentrarme?", "label": "personal_informativa"}
+{"text": "¿Cómo registro mi progreso en una materia?", "label": "personal_informativa"}
+{"text": "¿Qué técnicas puedo probar para recordar mejor un tema?", "label": "personal_informativa"}
+{"text": "¿Cómo organizo un plan de estudio realista?", "label": "personal_informativa"}
+{"text": "¿Qué señales indican que necesito cambiar mi método de estudio?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo preparar un examen sin estudiar toda la noche?", "label": "personal_informativa"}
+{"text": "¿Qué información necesito para planificar unas vacaciones?", "label": "personal_informativa"}
+{"text": "¿Cómo comparo dos destinos según presupuesto y tiempo?", "label": "personal_informativa"}
+{"text": "¿Qué cosas conviene revisar antes de reservar un alojamiento?", "label": "personal_informativa"}
+{"text": "¿Cómo organizo un viaje con varias personas?", "label": "personal_informativa"}
+{"text": "¿Qué alternativas tengo si se cancela mi transporte?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo calcular el presupuesto diario de un viaje?", "label": "personal_informativa"}
+{"text": "¿Qué debería llevar para un viaje de pocos días?", "label": "personal_informativa"}
+{"text": "¿Cómo analizo si un destino es accesible para mi familia?", "label": "personal_informativa"}
+{"text": "¿Qué preguntas conviene hacerle a una agencia de viajes?", "label": "personal_informativa"}
+{"text": "¿Cómo planifico una salida sin gastar de más?", "label": "personal_informativa"}
+{"text": "¿Qué información debería darle a un profesional de salud mental?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo describir mi nivel de estrés de forma clara?", "label": "personal_informativa"}
+{"text": "¿Qué hábitos puedo observar para entender mi cansancio?", "label": "personal_informativa"}
+{"text": "¿Cómo organizo un registro de sueño?", "label": "personal_informativa"}
+{"text": "¿Qué preguntas puedo hacer sobre los efectos de un medicamento?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo prepararme para hablar de un tema incómodo en terapia?", "label": "personal_informativa"}
+{"text": "¿Qué diferencias hay entre descansar y postergar una tarea?", "label": "personal_informativa"}
+{"text": "¿Cómo analizo qué situaciones me generan ansiedad?", "label": "personal_informativa"}
+{"text": "¿Qué alternativas tengo para pedir ayuda cuando me siento desbordado?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo hablar de mis hábitos sin sentir vergüenza?", "label": "personal_informativa"}
+{"text": "¿Qué criterios puedo usar para elegir un regalo?", "label": "personal_informativa"}
+{"text": "¿Cómo comparo proveedores para mi emprendimiento?", "label": "personal_informativa"}
+{"text": "¿Qué costos debería incluir en el precio de un producto?", "label": "personal_informativa"}
+{"text": "¿Cómo analizo si una idea de negocio tiene clientes?", "label": "personal_informativa"}
+{"text": "¿Qué preguntas conviene hacer a un posible socio?", "label": "personal_informativa"}
+{"text": "¿Cómo organizo las tareas de mi emprendimiento?", "label": "personal_informativa"}
+{"text": "¿Qué datos necesito para evaluar una venta online?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo medir si una publicidad funciona?", "label": "personal_informativa"}
+{"text": "¿Qué riesgos debería contemplar antes de ofrecer un servicio?", "label": "personal_informativa"}
+{"text": "¿Cómo preparo un presupuesto para un proyecto personal?", "label": "personal_informativa"}
+{"text": "¿Qué factores debería considerar al adoptar una mascota?", "label": "personal_informativa"}
+{"text": "¿Cómo organizo el cuidado de una mascota entre varias personas?", "label": "personal_informativa"}
+{"text": "¿Qué información necesito antes de reparar algo en casa?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo priorizar arreglos urgentes del hogar?", "label": "personal_informativa"}
+{"text": "¿Qué debería revisar antes de comprar herramientas?", "label": "personal_informativa"}
+{"text": "¿Cómo comparo el consumo eléctrico de dos aparatos?", "label": "personal_informativa"}
+{"text": "¿Qué alternativas tengo para hacer más seguro mi hogar?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo organizar una mudanza paso a paso?", "label": "personal_informativa"}
+{"text": "¿Qué preguntas conviene hacer antes de contratar una reparación?", "label": "personal_informativa"}
+{"text": "¿Cómo calculo cuánto espacio necesito para guardar mis cosas?", "label": "personal_informativa"}
+{"text": "¿Qué debería tener en cuenta para elegir una actividad física?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo adaptar una rutina a mi nivel actual?", "label": "personal_informativa"}
+{"text": "¿Qué información necesito antes de anotarme en un gimnasio?", "label": "personal_informativa"}
+{"text": "¿Cómo analizo si una meta es alcanzable?", "label": "personal_informativa"}
+{"text": "¿Qué alternativas tengo para mantener una rutina cuando viajo?", "label": "personal_informativa"}
+{"text": "¿Cómo puedo dividir un objetivo grande en tareas pequeñas?", "label": "personal_informativa"}
+{"text": "¿Qué señales muestran que estoy avanzando en un hábito?", "label": "personal_informativa"}
+{"text": "¿Cómo organizo una revisión semanal de mis objetivos?", "label": "personal_informativa"}
+{"text": "¿Qué puedo registrar para entender por qué abandono mis planes?", "label": "personal_informativa"}
+{"text": "¿Cómo comparo mis prioridades con el tiempo que realmente tengo?", "label": "personal_informativa"}
+{"text": "¿Qué carrera elijo para estudiar?", "label": "personal_decision"}
+{"text": "Decidí por mí si acepto este trabajo.", "label": "personal_decision"}
+{"text": "¿Renuncio hoy o espero unos meses?", "label": "personal_decision"}
+{"text": "Elegí cuál de estas dos computadoras compro.", "label": "personal_decision"}
+{"text": "¿Me mudo o sigo viviendo donde estoy?", "label": "personal_decision"}
+{"text": "Decime qué teléfono tengo que comprar.", "label": "personal_decision"}
+{"text": "¿Termino mi relación o intento continuar?", "label": "personal_decision"}
+{"text": "¿Qué opción debería elegir entre estas ofertas?", "label": "personal_decision"}
+{"text": "Elegí una carrera por mí.", "label": "personal_decision"}
+{"text": "¿Compro una casa o sigo alquilando?", "label": "personal_decision"}
+{"text": "Decime si acepto la propuesta de mi jefe.", "label": "personal_decision"}
+{"text": "¿Tengo que cambiar de trabajo?", "label": "personal_decision"}
+{"text": "Elegí el mejor curso para mí.", "label": "personal_decision"}
+{"text": "¿Estudio de mañana o de noche?", "label": "personal_decision"}
+{"text": "Decidí qué materia rindo primero.", "label": "personal_decision"}
+{"text": "¿Viajo ahora o ahorro la plata?", "label": "personal_decision"}
+{"text": "Elegí el destino de mis próximas vacaciones.", "label": "personal_decision"}
+{"text": "¿Compro este auto usado o lo dejo pasar?", "label": "personal_decision"}
+{"text": "Decime si conviene pedir este préstamo.", "label": "personal_decision"}
+{"text": "¿Invierto mis ahorros o los dejo en la cuenta?", "label": "personal_decision"}
+{"text": "Elegí qué computadora le regalo a mi hermano.", "label": "personal_decision"}
+{"text": "¿Le pido disculpas o espero que se calme?", "label": "personal_decision"}
+{"text": "Decime si vuelvo a hablarle a mi amigo.", "label": "personal_decision"}
+{"text": "¿Acepto la invitación o me quedo en casa?", "label": "personal_decision"}
+{"text": "Elegí por mí si compro o no compro esto.", "label": "personal_decision"}
+{"text": "¿Le cuento la verdad a mi familia?", "label": "personal_decision"}
+{"text": "Decime si tengo que responder ese mensaje.", "label": "personal_decision"}
+{"text": "¿Me anoto en el gimnasio o empiezo en casa?", "label": "personal_decision"}
+{"text": "Elegí qué hábito debería empezar primero.", "label": "personal_decision"}
+{"text": "¿Cambio de carrera este año?", "label": "personal_decision"}
+{"text": "Decime qué especialización profesional hago.", "label": "personal_decision"}
+{"text": "¿Acepto trabajar horas extra o las rechazo?", "label": "personal_decision"}
+{"text": "Elegí cuál de estos tres empleos me conviene.", "label": "personal_decision"}
+{"text": "¿Pido un aumento de sueldo?", "label": "personal_decision"}
+{"text": "Decime si me conviene trabajar por mi cuenta.", "label": "personal_decision"}
+{"text": "¿Me postulo a ese puesto aunque no cumpla todo?", "label": "personal_decision"}
+{"text": "Elegí si sigo con este proyecto o lo abandono.", "label": "personal_decision"}
+{"text": "¿Contrataría este servicio si estuvieras en mi lugar?", "label": "personal_decision"}
+{"text": "Decime qué proveedor tengo que usar.", "label": "personal_decision"}
+{"text": "¿Abro el emprendimiento ahora o espero?", "label": "personal_decision"}
+{"text": "Elegí el precio que debería cobrar.", "label": "personal_decision"}
+{"text": "¿Acepto a este socio para el negocio?", "label": "personal_decision"}
+{"text": "Decime si vendo este producto o lo guardo.", "label": "personal_decision"}
+{"text": "¿Invierto en publicidad o en materiales?", "label": "personal_decision"}
+{"text": "Elegí qué idea de negocio desarrollo primero.", "label": "personal_decision"}
+{"text": "¿Pido un préstamo para comprar herramientas?", "label": "personal_decision"}
+{"text": "Decime si firmo este contrato.", "label": "personal_decision"}
+{"text": "¿Renuevo el alquiler o busco otra vivienda?", "label": "personal_decision"}
+{"text": "Elegí qué seguro contrato.", "label": "personal_decision"}
+{"text": "¿Compro este departamento o sigo buscando?", "label": "personal_decision"}
+{"text": "Decime si acepto las condiciones del vendedor.", "label": "personal_decision"}
+{"text": "¿Reclamo por el problema o lo dejo pasar?", "label": "personal_decision"}
+{"text": "Elegí qué reparación hago primero en casa.", "label": "personal_decision"}
+{"text": "¿Cambio el teléfono ahora o espero una oferta?", "label": "personal_decision"}
+{"text": "Decime qué herramienta compro.", "label": "personal_decision"}
+{"text": "¿Arreglo la computadora o compro otra?", "label": "personal_decision"}
+{"text": "Elegí qué componente necesito para mi proyecto.", "label": "personal_decision"}
+{"text": "¿Contrato internet más rápido o mantengo el plan?", "label": "personal_decision"}
+{"text": "Decime qué proveedor de internet elijo.", "label": "personal_decision"}
+{"text": "¿Compro una consola o actualizo la PC?", "label": "personal_decision"}
+{"text": "Elegí qué destino visitamos en familia.", "label": "personal_decision"}
+{"text": "¿Reservo este alojamiento o busco otro?", "label": "personal_decision"}
+{"text": "Decime si viajo solo o acompañado.", "label": "personal_decision"}
+{"text": "¿Tomo el vuelo temprano o el de la noche?", "label": "personal_decision"}
+{"text": "Elegí si llevo auto o uso transporte público.", "label": "personal_decision"}
+{"text": "¿Cancelo el viaje o voy igual?", "label": "personal_decision"}
+{"text": "Decime qué actividades hacemos durante el viaje.", "label": "personal_decision"}
+{"text": "¿Cambio las fechas de las vacaciones?", "label": "personal_decision"}
+{"text": "Elegí el hotel por mí.", "label": "personal_decision"}
+{"text": "¿Invito a esa persona a viajar conmigo?", "label": "personal_decision"}
+{"text": "Decime si empiezo terapia.", "label": "personal_decision"}
+{"text": "¿Pido un turno médico ahora o espero?", "label": "personal_decision"}
+{"text": "Elegí qué tema llevo primero a terapia.", "label": "personal_decision"}
+{"text": "¿Le cuento estos síntomas al médico?", "label": "personal_decision"}
+{"text": "Decime si cambio mi rutina de ejercicios.", "label": "personal_decision"}
+{"text": "¿Sigo entrenando aunque hoy esté cansado?", "label": "personal_decision"}
+{"text": "Elegí una actividad física para empezar.", "label": "personal_decision"}
+{"text": "¿Me quedo descansando o voy a entrenar?", "label": "personal_decision"}
+{"text": "Decime qué hábito saludable incorporo primero.", "label": "personal_decision"}
+{"text": "¿Pido ayuda por este problema o intento resolverlo solo?", "label": "personal_decision"}
+{"text": "Elegí qué mascota adoptar.", "label": "personal_decision"}
+{"text": "¿Adopto este perro o sigo buscando?", "label": "personal_decision"}
+{"text": "Decime si compro las herramientas para arreglar la casa.", "label": "personal_decision"}
+{"text": "¿Hago la mudanza este fin de semana?", "label": "personal_decision"}
+{"text": "Elegí qué habitación arreglo primero.", "label": "personal_decision"}
+{"text": "¿Tiro estas cosas o las guardo?", "label": "personal_decision"}
+{"text": "Decime si conviene comprar muebles nuevos.", "label": "personal_decision"}
+{"text": "¿Contratamos una empresa de mudanza?", "label": "personal_decision"}
+{"text": "Elegí el color para pintar mi habitación.", "label": "personal_decision"}
+{"text": "¿Le presto dinero a mi familiar?", "label": "personal_decision"}
+{"text": "Decime si acepto la invitación a esa reunión.", "label": "personal_decision"}
+{"text": "¿Respondo ahora o mañana?", "label": "personal_decision"}
+{"text": "Elegí qué regalo compro para mi pareja.", "label": "personal_decision"}
+{"text": "¿Organizo la fiesta o la cancelo?", "label": "personal_decision"}
+{"text": "Decime si hablo con mi vecino por el problema.", "label": "personal_decision"}
+{"text": "¿Participo en ese proyecto con mis amigos?", "label": "personal_decision"}
+{"text": "Elegí qué prioridad atiendo primero.", "label": "personal_decision"}
+{"text": "¿Sigo con este plan o empiezo uno nuevo?", "label": "personal_decision"}
+{"text": "Decime cuál de estas opciones es la correcta para mí.", "label": "personal_decision"}
+{"text": "Elegí por mí qué debería hacer.", "label": "personal_decision"}

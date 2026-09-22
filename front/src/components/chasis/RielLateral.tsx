@@ -7,10 +7,12 @@ const publicDestinations = [
 
 const privateDestinations = [
   { href: '/', label: 'Inicio', icon: 'home' },
+  { href: '/nuevo-chat', label: 'Chat', icon: 'chat' },
   { href: '/perfil-tecnico', label: 'Configuración técnica', icon: 'settings' }
 ];
 
 function Icon({ name }: { name: string }) {
+  if (name === 'chat') return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3h14v11H8l-5 3V3Z" /><line x1="6" y1="7" x2="14" y2="7" /><line x1="6" y1="10" x2="11" y2="10" /></svg>;
   if (name === 'home') return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="14" height="14" /><line x1="6" y1="8" x2="14" y2="8" /><line x1="6" y1="11" x2="14" y2="11" /><line x1="6" y1="14" x2="11" y2="14" /></svg>;
   if (name === 'profile') return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="3" width="6" height="6" /><path d="M3 17 5 11h10l2 6" /></svg>;
   if (name === 'settings') return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="4" width="12" height="12" /><line x1="7" y1="8" x2="13" y2="8" /><line x1="7" y1="12" x2="13" y2="12" /></svg>;

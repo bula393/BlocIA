@@ -39,6 +39,7 @@ class GoogleAuth:
         link = self.links.get_by_subject("google", subject)
         if link:
             link.mark_used()
+            self.links.save(link)
             user = self.users.get(link.user_mail)
             if user is not None:
                 return user, create_access_token(user.mail)
