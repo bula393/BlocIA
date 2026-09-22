@@ -93,4 +93,52 @@ npm.cmd ci
 
 La ejecución usa CPU por defecto y no descarga modelos al recibir mensajes.
 
+## Configurar otra computadora después de clonar
+
+```powershell
+git clone https://github.com/bula393/BlocIA.git
+cd BlocIA
+
+cd back
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+.\.venv\Scripts\python.exe -m pip install -e ".[local,test]"
+
+# Descarga el encoder E5 y entrena el clasificador local
+.\.venv\Scripts\python.exe -m ml.prepare
+.\.venv\Scripts\python.exe -m ml.train
+
+cd ..\front
+npm ci
+cd ..
+```
+
+Los modelos descargados quedan en `back/models` y están excluidos de Git por su tamaño. La base SQLite se crea automáticamente en `back/data`.
+
+Para iniciar el sistema completo:
+
+```powershell
+.\Start-BlocIA.ps1
+```
+
+Abrí <http://127.0.0.1:5173/nuevo-chat>. Para detenerlo:
+
+```powershell
+.\Stop-BlocIA.ps1
+```
+
+También se puede iniciar el backend manualmente:
+
+```powershell
+cd back
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+Usá el inicio completo o el comando manual, pero no ambos al mismo tiempo: los dos usan el puerto 8000. Si PowerShell bloquea la activación o los scripts, se puede habilitar solo para la terminal actual:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+```
+
 Referencias oficiales: [E5 multilingüe](https://huggingface.co/intfloat/multilingual-e5-small), [Sentence Transformers](https://www.sbert.net/docs/package_reference/sentence_transformer/model.html).
