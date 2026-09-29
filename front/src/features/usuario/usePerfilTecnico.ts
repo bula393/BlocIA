@@ -20,6 +20,8 @@ export function usePerfilTecnico() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['technical-profile'] });
       queryClient.invalidateQueries({ queryKey: ['available-models', 'openai'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-providers'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-models'] });
       queryClient.invalidateQueries({ queryKey: ['usage-today'] });
     }
   });
@@ -28,6 +30,8 @@ export function usePerfilTecnico() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['technical-profile'] });
       queryClient.invalidateQueries({ queryKey: ['available-models', 'openai'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-providers'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-models'] });
       queryClient.invalidateQueries({ queryKey: ['usage-today'] });
     }
   });

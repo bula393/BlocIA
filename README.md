@@ -1,6 +1,6 @@
 # BloqIA: chat y clasificador local
 
-Interfaz de chat en español con historial por usuario y la paleta original. Funciona localmente con **E5 multilingüe + regresión logística**. Cada consulta devuelve únicamente categoría, confianza y estado de revisión; no genera respuestas ni usa el historial como entrada del modelo.
+Interfaz de chat en español con historial por usuario y la paleta original. Clasifica cada consulta con **E5 multilingüe + regresión logística**. Las consultas generales e informativas reciben una respuesta en Markdown del modelo elegido. Sin claves de proveedor, usa **Qwen3-0.6B local** si está instalado.
 
 ## Abrir el sistema
 
@@ -31,7 +31,7 @@ cd back
 .\.venv\Scripts\python.exe -m ml.train
 ```
 
-`prepare` descarga únicamente los pesos públicos del encoder E5 fijados a una revisión y deja su manifiesto en `back/models/manifest.json`. `train` trabaja sin conexión y conserva los grupos de preguntas casi idénticas en una misma partición. Se usaron 259 ejemplos para entrenar, 37 para elegir la regularización y 74 para evaluar; la prueba no se usa para elegir hiperparámetros.
+`prepare` descarga los pesos públicos del encoder E5 y Qwen3-0.6B fijado a una revisión. El encoder se guarda en `back/models/embeddings` y el generador gratuito en `back/models/chat`; el manifiesto del encoder queda en `back/models/manifest.json`. `train` trabaja sin conexión y conserva los grupos de preguntas casi idénticas en una misma partición. Se usaron 259 ejemplos para entrenar, 37 para elegir la regularización y 74 para evaluar; la prueba no se usa para elegir hiperparámetros.
 
 La evaluación inicial obtuvo **macro F1 = 0,9586** y **recall de personal_decision = 1,0000**, con 71/74 predicciones correctas. Los criterios de aceptación adoptados en la configuración son macro F1 ≥ 0,80 y recall de decisiones ≥ 0,85. Si fallan, el entrenamiento no publica pesos nuevos y el servicio no anuncia el clasificador como listo.
 
@@ -45,7 +45,7 @@ Son métricas sobre ejemplos sintéticos aportados por el usuario, con agrupaci�
 - Confianza menor a 0,55: revisión manual; entre 0,55 y 0,70: baja confianza.
 - Decisiones sensibles de salud, legales o financieras: indicador de revisión humana.
 
-El servicio guarda la consulta y su clasificación estructurada en una misma transacción. La interfaz muestra la clasificación de los chats anteriores, conservando los registros existentes. El generador fue retirado del código y de la configuración; sus pesos descargados anteriormente pueden permanecer en disco, pero no se cargan ni son necesarios.
+El servicio guarda cada consulta y su clasificación estructurada en el historial para permitir estadísticas posteriores. La clasificación se muestra al pasar el cursor sobre el indicador junto a la respuesta. `no_personal` y `personal_informativa` se responden con el modelo seleccionado; `personal_decision` no se envía al generador. Las claves conectadas habilitan las APIs de OpenAI, Google y Anthropic. Si no hay claves, Qwen3 se ejecuta en este equipo y no envía el texto a un proveedor externo.
 
 El clasificador no se ajusta con conversaciones de usuarios automáticamente. El historial se guarda localmente y se ocultan correos, teléfonos y algunos nombres/domicilios explícitos antes de persistirlos. Esa detección es heurística; no garantiza eliminar todo dato identificatorio de texto libre. El usuario puede eliminar sus chats.
 
@@ -91,7 +91,7 @@ cd ../front
 npm.cmd ci
 ```
 
-La ejecución usa CPU por defecto y no descarga modelos al recibir mensajes.
+La ejecución usa CPU por defecto y no descarga modelos al recibir mensajes. La preparación inicial descarga Qwen3-0.6B para habilitar respuestas sin una clave de proveedor.
 
 ## Configurar otra computadora después de clonar
 
@@ -105,7 +105,7 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 .\.venv\Scripts\python.exe -m pip install -e ".[local,test]"
 
-# Descarga el encoder E5 y entrena el clasificador local
+# Descarga el encoder E5 y Qwen3 local, y entrena el clasificador
 .\.venv\Scripts\python.exe -m ml.prepare
 .\.venv\Scripts\python.exe -m ml.train
 

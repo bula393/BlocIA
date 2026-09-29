@@ -18,6 +18,11 @@ class Database:
         try:
             connection.execute("PRAGMA journal_mode=WAL")
             connection.executescript((Path(__file__).parent / "schema.sql").read_text(encoding="utf-8"))
+            message_columns = {row["name"] for row in connection.execute("PRAGMA table_info(messages)")}
+            if "provider_id" not in message_columns:
+                connection.execute("ALTER TABLE messages ADD COLUMN provider_id TEXT")
+            if "model_id" not in message_columns:
+                connection.execute("ALTER TABLE messages ADD COLUMN model_id TEXT")
         finally:
             connection.close()
         self._seed_and_import(legacy_path)

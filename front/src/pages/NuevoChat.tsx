@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useQueries, useQuery } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
 import { createConversation, deleteConversation, getChatStatus, getConversation, listConversations, sendMessage, type ChatStatus, type Conversation, type Message } from '../api/chat';
+import { listAvailableModels, listTechnicalProviders } from '../api/technicalProfile';
 
 const labelNames = { no_personal: 'Consulta general', personal_informativa: 'Análisis personal', personal_decision: 'Decisión personal' };
 const ideas = [
@@ -10,26 +14,41 @@ const ideas = [
 ];
 
 function ChatMessage({ message }: { message: Message }) {
-  const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState(false);
   const classification = message.classification;
-  return <article className={`chat-message chat-message--${message.role}`} aria-label={message.role === 'user' ? 'Tu mensaje' : 'Clasificación de BloqIA'}>
-    {message.role === 'user' ? <div className="chat-markdown" style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div> : <>
-      <div className="chat-author"><span className="chat-avatar" aria-hidden="true">B</span><strong>BloqIA · Clasificador</strong></div>
-      {classification ? <div className="chat-classification-result">
-        <h2>{labelNames[classification.label]}</h2>
+  if (message.role === 'user') {
+    return <article className="chat-message chat-message--user" aria-label="Tu mensaje"><div className="chat-markdown">{message.content}</div></article>;
+  }
+
+  let content = message.content;
+  // Older conversations stored the classifier JSON as the assistant message.
+  if (!message.modelId && classification && content.startsWith('{')) {
+    try {
+      const legacy = JSON.parse(content) as { label?: string };
+      if (legacy.label && legacy.label in labelNames) content = `Esta consulta fue clasificada como **${labelNames[legacy.label as keyof typeof labelNames]}**.`;
+    } catch { /* Display non-JSON assistant content as written. */ }
+  }
+
+  return <div className="chat-response-row">
+    <article className="chat-message chat-message--assistant" aria-label="Respuesta de BloqIA">
+      <div className="chat-author"><span className="chat-avatar" aria-hidden="true">B</span><strong>BloqIA{message.providerId === 'local' ? ' · Qwen3-0.6B local' : message.modelId ? ` · ${message.modelId}` : ''}</strong></div>
+      <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown></div>
+    </article>
+    {classification && <div className="chat-classification-anchor" tabIndex={0} aria-label="Ver respuesta del clasificador" aria-describedby={`classification-${message.id}`}>
+      <span className="chat-classification-indicator" aria-hidden="true">i</span>
+      <div className="chat-classification-popover" id={`classification-${message.id}`} role="tooltip">
+        <strong>Clasificación del mensaje</strong>
+        <p>Categoría: <b>{labelNames[classification.label]}</b></p>
         <p><code>{classification.label}</code></p>
-        <p>Confianza: <strong>{Math.round(classification.confidence * 100)} %</strong></p>
+        <p>Confianza: <b>{Math.round(classification.confidence * 100)} %</b></p>
         <p>{classification.status === 'aceptada' ? 'Clasificación aceptada' : classification.status === 'baja_confianza' ? 'Clasificación con baja confianza' : 'Necesita una aclaración o revisión'}</p>
         <p data-review={classification.needs_human_review}>{classification.needs_human_review ? 'Revisión humana requerida' : 'No requiere revisión humana'}</p>
-        <button type="button" className="chat-text-button" onClick={() => {
-          navigator.clipboard.writeText(JSON.stringify(classification, null, 2)).then(() => { setCopied(true); setCopyError(false); }).catch(() => setCopyError(true));
-        }}>{copied ? 'Copiado' : 'Copiar clasificación'}</button>
-        {copyError && <small role="status">No se pudo copiar.</small>}
-      </div> : <p>Este mensaje anterior no tiene una clasificación guardada.</p>}
-    </>}
-  </article>;
+        {classification.probabilities && <div className="chat-classification-probabilities"><span>Probabilidades</span>{Object.entries(classification.probabilities).map(([label, probability]) => <small key={label}>{label}: {Math.round(probability * 100)} %</small>)}</div>}
+      </div>
+    </div>}
+  </div>;
 }
+
+interface ChatModelOption { key: string; providerId: string; providerName: string; modelId: string; displayName: string }
 
 export function NuevoChat() {
   const initialId = new URLSearchParams(window.location.search).get('chat');
@@ -46,11 +65,47 @@ export function NuevoChat() {
   const [error, setError] = useState('');
   const [historyError, setHistoryError] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState('');
   const inFlight = useRef(false);
   const failedRequest = useRef<{ id: string; prompt: string; conversationId: string } | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const limit = status?.maxInputCharacters ?? 4000;
+  const providerQuery = useQuery({ queryKey: ['chat-providers'], queryFn: listTechnicalProviders });
+  const configuredProviders = (providerQuery.data?.providers ?? []).filter((provider) => provider.status === 'available' && provider.tokenStatus.status === 'configured');
+  const modelCatalogQueries = useQueries({
+    queries: configuredProviders.map((provider) => ({
+      queryKey: ['chat-models', provider.providerId],
+      queryFn: () => listAvailableModels(provider.providerId),
+      retry: false
+    }))
+  });
+  const modelCatalogQueryByProvider = new Map(configuredProviders.map((provider, index) => [provider.providerId, modelCatalogQueries[index]]));
+  const modelOptions: ChatModelOption[] = [
+    ...configuredProviders.flatMap((provider) => {
+      const catalog = modelCatalogQueryByProvider.get(provider.providerId)?.data;
+      if (!catalog || catalog.source !== 'token') return [];
+      return catalog.models.filter((model) => model.availabilityStatus === 'available').map((model) => ({ key: `${provider.providerId}:${model.modelId}`, providerId: provider.providerId, providerName: provider.name, modelId: model.modelId, displayName: model.displayName }));
+    }),
+    ...(status?.freeModels ?? []).map((model) => ({ key: `${model.providerId}:${model.modelId}`, ...model }))
+  ];
+  const selectedModelOption = modelOptions.find((model) => model.key === selectedModel);
+  const modelsLoading = !status || providerQuery.isLoading || modelCatalogQueries.some((query) => query.isLoading);
+  const providerTokenAvailable = configuredProviders.length > 0;
+  const failedCatalogs = configuredProviders.flatMap((provider, index) => {
+    const query = modelCatalogQueries[index];
+    if (!query?.isError) return [];
+    const reason = query.error instanceof Error ? query.error.message : 'No se pudo consultar el catálogo.';
+    return [`${provider.name}: ${reason}`];
+  });
+
+  useEffect(() => {
+    if (!modelOptions.length) {
+      if (selectedModel) setSelectedModel('');
+    } else if (!modelOptions.some((model) => model.key === selectedModel)) {
+      setSelectedModel(modelOptions[0].key);
+    }
+  }, [modelOptions, selectedModel]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -102,7 +157,7 @@ export function NuevoChat() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     const prompt = draft.trim();
-    if (!prompt || inFlight.current || !status?.ready || loading) return;
+    if (!prompt || inFlight.current || !status?.ready || loading || modelsLoading) return;
     inFlight.current = true;
     setSending(true);
     setPendingPrompt(prompt);
@@ -119,7 +174,7 @@ export function NuevoChat() {
       const previous = failedRequest.current;
       const requestId = previous?.prompt === prompt && previous.conversationId === conversationId ? previous.id : crypto.randomUUID();
       failedRequest.current = { id: requestId, prompt, conversationId };
-      const result = await sendMessage(conversationId, prompt, requestId);
+      const result = await sendMessage(conversationId, prompt, requestId, selectedModelOption ? { providerId: selectedModelOption.providerId, modelId: selectedModelOption.modelId } : undefined);
       setMessages(result.messages);
       setConversations((previous) => [result.conversation, ...previous.filter((item) => item.id !== result.conversation.id)]);
       failedRequest.current = null;
@@ -168,13 +223,24 @@ export function NuevoChat() {
             <div className="chat-welcome-mark" aria-hidden="true"><span /><span /></div>
             <p className="provider-eyebrow">Clasificador de preguntas</p>
             <h1>Clasificá tu consulta.</h1>
-            <p>Escribí una consulta para conocer su categoría, confianza y si requiere revisión humana.</p>
+            <p>Escribí una consulta para ver su clasificación. Las consultas generales e informativas también reciben una respuesta del modelo elegido.</p>
             <div className="chat-ideas">{ideas.map((idea) => <button type="button" key={idea.title} onClick={() => { setDraft(idea.prompt); textarea.current?.focus(); }}><span>{idea.title}</span><small>{idea.prompt}</small><span aria-hidden="true">↗</span></button>)}</div>
           </div>}
           {loading && <p className="chat-loading" role="status">Cargando conversación…</p>}
           <div className="chat-transcript" role="log" aria-label="Mensajes de la conversación" aria-live="polite">
             {messages.map((message) => <ChatMessage key={message.id} message={message} />)}
-            {sending && <><article className="chat-message chat-message--user"><div className="chat-markdown">{pendingPrompt}</div></article><div className="chat-thinking" role="status"><span className="chat-avatar">B</span><span>BloqIA está clasificando<span className="chat-thinking-dots">…</span></span></div></>}
+            {sending && <>
+              <article className="chat-message chat-message--user"><div className="chat-markdown">{pendingPrompt}</div></article>
+              <div className="chat-progress-card" role="status" aria-live="polite">
+                <div className="chat-progress-heading">
+                  <span className="chat-progress-orbit" aria-hidden="true"><i /></span>
+                  <div><strong>Estamos preparando tu respuesta</strong><small>{selectedModelOption ? `Clasificación local · respuesta con ${selectedModelOption.displayName}` : 'Clasificación local de la consulta'}</small></div>
+                </div>
+                <div className="chat-progress-track" aria-hidden="true"><span /></div>
+                <div className="chat-answer-skeleton" aria-hidden="true"><i /><i /><i /></div>
+                <small className="chat-progress-note">Si la consulta es apta, el modelo elegido la responde y la mostramos acá.</small>
+              </div>
+            </>}
           </div>
           <div ref={end} />
         </div>
@@ -184,9 +250,18 @@ export function NuevoChat() {
           <form className="chat-composer" onSubmit={submit}>
             <label className="chat-input-label" htmlFor="chat-prompt">Mensaje para BloqIA</label>
             <textarea id="chat-prompt" ref={textarea} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Escribí tu mensaje…" rows={2} maxLength={limit} disabled={sending || loading} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <div className="chat-composer-bottom"><small>{sending ? 'Clasificando en tu equipo…' : draft.length > limit * 0.8 ? `${draft.length} / ${limit}` : 'Enter para enviar · Shift + Enter para un salto'}</small><button type="submit" className="chat-send" data-primary="true" aria-label="Enviar mensaje" disabled={!draft.trim() || sending || loading || !status?.ready}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" /></svg></button></div>
+            <div className="chat-model-picker">
+              <label htmlFor="chat-model">Modelo de respuesta</label>
+              <select id="chat-model" value={selectedModel} onChange={(event) => setSelectedModel(event.target.value)} disabled={!modelOptions.length || sending || loading}>
+                {modelOptions.length === 0 && <option value="">Sin modelo conectado</option>}
+                {modelOptions.map((model) => <option value={model.key} key={model.key}>{model.providerName} · {model.displayName}</option>)}
+              </select>
+              {modelOptions.length === 0 && <small>{modelsLoading ? 'Buscando modelos…' : providerQuery.isError ? 'No se pudieron cargar tus proveedores.' : providerTokenAvailable ? 'No hay modelos disponibles para las claves conectadas. Revisá tu Perfil técnico.' : <>Conectá un proveedor desde <a href="/perfil-tecnico">Perfil técnico</a> para generar respuestas.</>}</small>}
+              {failedCatalogs.length > 0 && <small className="bloq-error">No se pudieron cargar modelos. {failedCatalogs.join(' · ')} Podés usar Qwen local si está instalado.</small>}
+            </div>
+            <div className="chat-composer-bottom"><small>{sending ? 'Clasificando en tu equipo…' : modelsLoading ? 'Cargando modelos…' : draft.length > limit * 0.8 ? `${draft.length} / ${limit}` : 'Enter para enviar · Shift + Enter para un salto'}</small><button type="submit" className="chat-send" data-primary="true" aria-label="Enviar mensaje" disabled={!draft.trim() || sending || loading || modelsLoading || !status?.ready}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" /></svg></button></div>
           </form>
-          <p className="chat-footnote">El historial se guarda en este equipo. Cada consulta se clasifica por separado.</p>
+          <p className="chat-footnote">El historial se guarda en este equipo. “Token conectado” indica que la clave está guardada; el proveedor puede rechazarla por permisos, cuota o facturación.</p>
         </div>
       </section>
     </div>

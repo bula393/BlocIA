@@ -43,7 +43,7 @@ class ChatRepository:
     def messages(self, mail, identifier):
         self.get(mail, identifier)
         rows = self.database.query("SELECT * FROM (SELECT * FROM messages WHERE conversation_id=? ORDER BY sequence DESC LIMIT 200) ORDER BY sequence", (identifier,))
-        return [{"id": row["id"], "role": row["role"], "content": row["content"], "createdAt": row["created_at"], "requestId": row["request_id"], "classification": json.loads(row["classification"]) if row["classification"] else None} for row in rows]
+        return [{"id": row["id"], "role": row["role"], "content": row["content"], "createdAt": row["created_at"], "requestId": row["request_id"], "classification": json.loads(row["classification"]) if row["classification"] else None, "providerId": row["provider_id"], "modelId": row["model_id"]} for row in rows]
 
     def delete(self, mail, identifier):
         with self.database.transaction():
@@ -69,12 +69,13 @@ class ChatRepository:
                 raise TurnConflictError("Ya hay una respuesta en curso para esta conversación.") from error
         return True
 
-    def complete(self, mail, identifier, request_id, prompt, answer, classification):
+    def complete(self, mail, identifier, request_id, prompt, answer, classification, provider_id=None, model_id=None):
         with self.database.transaction():
             self.get(mail, identifier)
             timestamp = now()
-            for role, content in [("user", prompt), ("assistant", answer)]:
-                self.database.execute("INSERT INTO messages(id,conversation_id,request_id,role,content,created_at,classification) VALUES (?,?,?,?,?,?,?)", (str(uuid4()), identifier, request_id, role, content, timestamp, json.dumps(classification)))
+            messages = [("user", prompt, None, None), ("assistant", answer, provider_id, model_id)]
+            for role, content, message_provider, message_model in messages:
+                self.database.execute("INSERT INTO messages(id,conversation_id,request_id,role,content,created_at,classification,provider_id,model_id) VALUES (?,?,?,?,?,?,?,?,?)", (str(uuid4()), identifier, request_id, role, content, timestamp, json.dumps(classification), message_provider, message_model))
             self.database.execute("UPDATE chat_turns SET state='completed' WHERE conversation_id=? AND request_id=?", (identifier, request_id))
             self.database.execute("UPDATE conversations SET title=CASE WHEN title='Nuevo chat' THEN ? ELSE title END,updated_at=? WHERE id=?", (prompt[:70], timestamp, identifier))
 

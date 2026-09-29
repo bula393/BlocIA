@@ -5,6 +5,7 @@ import re
 from threading import RLock
 
 from .settings import ROOT, settings
+from .free_models import local_free_models
 
 os.environ.setdefault("HF_HOME", str(ROOT / "models/.cache"))
 os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
@@ -31,7 +32,8 @@ class LocalModels:
         classifier_ready = (ROOT / "ml/artifacts/classifier.json").is_file() and report.get("passed", False) and ((embeddings / "model.safetensors").is_file() or (embeddings / "pytorch_model.bin").is_file())
         classifier_ready = classifier_ready and manifest.get("embeddings", {}).get("model") == classifier_config.embedding_model and report.get("encoder") == manifest.get("embeddings")
         return {"ready": bool(classifier_ready), "classifierReady": bool(classifier_ready), "mode": "classification", "model": classifier_config.embedding_model,
-                "maxInputCharacters": chat_config.max_input_characters, "training": {"examples": report.get("examples"), "macroF1": report.get("test", {}).get("macro avg", {}).get("f1-score"), "decisionRecall": report.get("test", {}).get("personal_decision", {}).get("recall")}}
+                "maxInputCharacters": chat_config.max_input_characters, "freeModels": local_free_models(),
+                "training": {"examples": report.get("examples"), "macroF1": report.get("test", {}).get("macro avg", {}).get("f1-score"), "decisionRecall": report.get("test", {}).get("personal_decision", {}).get("recall")}}
 
     def _load_classifier(self):
         with self._lock:

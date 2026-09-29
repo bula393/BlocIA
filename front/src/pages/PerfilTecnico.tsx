@@ -55,8 +55,8 @@ export function PerfilTecnico() {
           <span className="provider-status">{provider.status === 'available' ? 'Disponible' : provider.status}</span>
         </header>
         <div className="provider-connection">
-          <div><span>Conexión</span><strong>{provider.tokenStatus.status === 'configured' ? `Token conectado · ${provider.tokenStatus.maskedTokenLabel ?? ''}` : 'Sin token configurado'}</strong></div>
-          <span className="connection-dot" data-state={provider.tokenStatus.status === 'configured' ? 'safe' : 'attention'} aria-label={provider.tokenStatus.status === 'configured' ? 'Token conectado' : 'Token sin configurar'} />
+          <div><span>Token</span><strong>{provider.tokenStatus.status === 'configured' ? `Guardado · ${provider.tokenStatus.maskedTokenLabel ?? ''}` : 'Sin token configurado'}</strong></div>
+          <span className="connection-dot" data-state={provider.tokenStatus.status === 'configured' ? 'safe' : 'attention'} aria-label={provider.tokenStatus.status === 'configured' ? 'Token guardado' : 'Token sin configurar'} />
         </div>
         <div className="model-catalog__header"><div><p className="provider-eyebrow">Biblioteca</p><h3>Modelos disponibles</h3></div>{provider.providerId === 'openai' && <button type="button" className="model-refresh" onClick={() => availableModels.refetch()}>Actualizar</button>}</div>
         {provider.providerId === 'openai' && availableModels.isLoading && <p>Cargando modelos...</p>}
