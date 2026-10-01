@@ -8,7 +8,7 @@ if (Test-Path -LiteralPath $processFile) {
     $savedProcesses = Get-Content -LiteralPath $processFile -Raw | ConvertFrom-Json
     $stillRunning = @($savedProcesses | Where-Object {
         $savedProcess = Get-Process -Id $_.id -ErrorAction SilentlyContinue
-        $savedProcess -and $savedProcess.StartTime.ToUniversalTime().ToString('O') -eq $_.startedAt
+        $savedProcess -and $savedProcess.StartTime.ToUniversalTime().Ticks -eq ([datetime]$_.startedAt).ToUniversalTime().Ticks
     })
     if ($stillRunning.Count -gt 0) {
         Write-Output 'BlocIA ya tiene procesos activos. Abrí http://127.0.0.1:5173 o ejecutá Stop-BlocIA.ps1 antes de reiniciar.'

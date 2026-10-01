@@ -55,6 +55,37 @@ def test_chat_persists_classification_and_idempotent_retries(sql_chat):
     assert client.get("/health").json()["database"]["ok"]
 
 
+def test_remote_default_uses_server_key_and_personal_key_takes_priority(sql_chat, monkeypatch):
+    from app.domain.user.provider_token import ProviderToken
+    from app.infrastructure.user.sqlite_repositories import TokenRepository
+    client, database, _ = sql_chat
+    monkeypatch.setenv("BLOCIA_FREE_OPENROUTER_KEY", "server-key")
+    calls = []
+
+    def generate(self, provider, model, prompt, api_key):
+        calls.append(api_key)
+        return "Respuesta remota"
+
+    monkeypatch.setattr(chat_routes.AIResponder, "generate", generate)
+    status = client.get("/chat/status").json()
+    assert status["freeModels"][0]["modelId"] == "openrouter/free"
+    assert "server-key" not in str(status)
+    identifier = client.post("/chat/conversations").json()["id"]
+    endpoint = f"/chat/conversations/{identifier}/messages"
+    payload = {"prompt": "Hola", "providerId": "openrouter", "modelId": "openrouter/free", "requestId": str(uuid4())}
+    response = client.post(endpoint, json=payload)
+    assert response.status_code == 200
+    assert response.json()["messages"][-1]["content"] == "Respuesta remota"
+    tokens = TokenRepository(database)
+    tokens.save(ProviderToken.create(str(uuid4()), "chat@example.com", "openrouter", "personal-key"))
+    tokens.save_secret("chat@example.com", "openrouter", "personal-key")
+    payload["requestId"] = str(uuid4())
+    assert client.post(endpoint, json=payload).status_code == 200
+    assert calls == ["server-key", "personal-key"]
+    payload.update(modelId="anthropic/claude-paid", requestId=str(uuid4()))
+    assert client.post(endpoint, json=payload).status_code == 422
+
+
 def test_failed_classification_can_retry_without_partial_messages(sql_chat):
     client, database, models = sql_chat
     identifier = client.post("/chat/conversations").json()["id"]

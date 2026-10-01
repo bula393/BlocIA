@@ -70,6 +70,18 @@ El servicio guarda cada consulta y su clasificación estructurada en el historia
 
 ## Modelos sin costo y claves personales
 
+### Modelo remoto gratuito por defecto
+
+El servidor admite una clave de respaldo de OpenRouter para quienes no conecten una propia. Usa únicamente `openrouter/free`; las rutas pagas se rechazan. Si la clave no está configurada, no se anuncia acceso remoto gratuito. El cupo gratuito se comparte entre quienes usen esta clave.
+
+Después de obtener una clave desde https://openrouter.ai/settings/keys sin comprar créditos, ejecutá desde `back`:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.application.chat.remote_defaults
+```
+
+La entrada es oculta. El comando valida el catálogo y una inferencia gratuita antes de guardar la clave cifrada en `back/data`, excluido de Git. Conservá juntos `.free-openrouter.token` y `.free-openrouter.key` para respaldarla. También se puede configurar `BLOCIA_FREE_OPENROUTER_KEY` en el entorno del backend. Al abrir un chat nuevo, el selector prioriza el modelo remoto de respaldo frente al local cuando no hay modelos de claves personales; una clave personal de OpenRouter tiene prioridad al enviar. Las consultas que se respondan con ese modelo se envían a OpenRouter y al proveedor remoto elegido por su router. Los límites gratuitos pueden agotarse; no se cambia automáticamente a una ruta paga.
+
 En **Perfil técnico** podés conectar claves API de tus propias cuentas; después elegí el modelo en el chat. Las claves se cifran en la base local y se usan desde el backend. No ingreses contraseñas de Google, ChatGPT ni de otros proveedores.
 
 | Opción | Configuración | Alcance |

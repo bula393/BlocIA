@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.application.chat.ai_responder import AIResponder, AIResponseUnavailableError
 from app.application.chat.context import build_model_context
 from app.application.chat.free_models import LOCAL_MODEL_ID, local_free_models
+from app.application.chat.remote_defaults import default_openrouter_key, remote_free_models
 from app.application.chat.local_models import local_models, ModelUnavailableError
 from app.application.chat.privacy import redact_personal_data
 from app.application.chat.settings import settings
@@ -66,7 +67,8 @@ def not_found(error):
 
 @router.get("/status")
 def status(mail=Depends(chat_user), models=Depends(local_models)):
-    return models.status()
+    result = models.status()
+    return {**result, "freeModels": remote_free_models() + result.get("freeModels", [])}
 
 
 @router.get("/conversations")
@@ -112,6 +114,8 @@ def send_message(identifier: UUID, payload: SendMessage, mail=Depends(chat_user)
             if payload.providerId not in responder.supported_providers or provider is None or provider.status.value != "available":
                 raise HTTPException(422, detail={"message": "El proveedor elegido no está disponible."})
             api_key = tokens.get_secret(mail, payload.providerId)
+            if not api_key and payload.providerId == "openrouter":
+                api_key = default_openrouter_key()
     reserved = False
     try:
         reserved = repository.reserve(mail, identifier, request_id, payload.prompt)

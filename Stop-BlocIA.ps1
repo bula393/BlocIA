@@ -5,7 +5,7 @@ if (!(Test-Path -LiteralPath $processFile)) { exit 0 }
 $savedProcesses = Get-Content -LiteralPath $processFile -Raw | ConvertFrom-Json
 foreach ($saved in $savedProcesses) {
     $ownedProcess = Get-Process -Id $saved.id -ErrorAction SilentlyContinue
-    if ($ownedProcess -and $ownedProcess.StartTime.ToUniversalTime().ToString('O') -eq $saved.startedAt) {
+    if ($ownedProcess -and $ownedProcess.StartTime.ToUniversalTime().Ticks -eq ([datetime]$saved.startedAt).ToUniversalTime().Ticks) {
         # The virtual-environment launcher can spawn a separate Python process.
         # Stop the whole owned process tree so the server releases its port.
         & taskkill.exe /PID $ownedProcess.Id /T /F | Out-Null
