@@ -5,7 +5,7 @@ import { useRegister } from '../features/usuario/useRegister';
 
 function strongPasswordHint(password: string) {
   const valid = password.length >= 10 && /[A-Za-z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
-  return valid ? 'Contrasenia segura' : 'Minimo 10 caracteres, una letra, un numero y un simbolo';
+  return valid ? 'Contraseña segura' : 'Mínimo 10 caracteres, una letra, un número y un símbolo';
 }
 
 export function Register() {
@@ -21,7 +21,7 @@ export function Register() {
   }
 
   return (
-    <ChasisBloqIA title="Registro" activePath="/login">
+    <ChasisBloqIA title="Registro" activePath="/login" contentClassName="auth-content">
       <section className="auth-intro">
         <h1>Crear cuenta</h1>
         <p className="bloq-reading">Completá estos datos para definir tu espacio de estudio o trabajo.</p>

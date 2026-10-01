@@ -1,7 +1,9 @@
 """Fetch the models that a user's current provider credential can access."""
 
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 import json
+import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -28,6 +30,24 @@ OPEN_WEIGHT_MODELS = [
     AIModel("gpt-oss-20b", "openai", "gpt-oss-20b", ModelAvailabilityStatus.AVAILABLE, ["texto", "pesos abiertos", "requiere ejecucion local"]),
     AIModel("gpt-oss-120b", "openai", "gpt-oss-120b", ModelAvailabilityStatus.AVAILABLE, ["texto", "pesos abiertos", "requiere ejecucion local"]),
 ]
+
+
+# OpenRouter documents these as free inference routes. Keep this check on the
+# backend as well as in the catalog so a crafted request cannot select a paid
+# model through a user's key.
+def is_free_openrouter_model_id(model_id: str) -> bool:
+    return len(model_id) <= 128 and (model_id == "openrouter/free" or bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*:free", model_id)))
+
+
+def _zero_text_price(pricing: object) -> bool:
+    if not isinstance(pricing, dict):
+        return False
+    try:
+        if Decimal(str(pricing["prompt"])) != 0 or Decimal(str(pricing["completion"])) != 0:
+            return False
+        return "request" not in pricing or Decimal(str(pricing["request"])) == 0
+    except (KeyError, InvalidOperation, TypeError, ValueError):
+        return False
 
 
 class OpenAIModelsClient:
@@ -114,6 +134,72 @@ class AnthropicModelsClient:
         return result
 
 
+class GroqModelsClient:
+    def list_models(self, api_key: str) -> list[AIModel]:
+        request = Request(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        payload = _get_json(request, "Groq")
+        items = payload.get("data")
+        if not isinstance(items, list):
+            raise ProviderModelsUnavailableError("Groq devolvió una lista de modelos inválida.")
+        excluded_terms = ("whisper", "tts", "speech", "audio", "orpheus", "prompt-guard")
+        return [
+            AIModel(item["id"], "groq", item["id"], ModelAvailabilityStatus.AVAILABLE, ["API", "chat"])
+            for item in items
+            if isinstance(item, dict)
+            and isinstance(item.get("id"), str)
+            and item.get("active") is not False
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}", item["id"])
+            and not any(term in item["id"].lower() for term in excluded_terms)
+        ]
+
+
+class OpenRouterModelsClient:
+    def list_models(self, api_key: str) -> list[AIModel]:
+        key_request = Request(
+            "https://openrouter.ai/api/v1/key",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        key_details = _get_json(key_request, "OpenRouter")
+        if not isinstance(key_details.get("data"), dict):
+            raise ProviderModelsUnavailableError("OpenRouter no pudo validar los datos de la clave de API.")
+
+        request = Request(
+            "https://openrouter.ai/api/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        payload = _get_json(request, "OpenRouter")
+        items = payload.get("data")
+        if not isinstance(items, list):
+            raise ProviderModelsUnavailableError("OpenRouter devolvió una lista de modelos inválida.")
+        result = []
+        router_listed = False
+        for item in items:
+            if not isinstance(item, dict) or not isinstance((model_id := item.get("id")), str):
+                continue
+            router_listed = router_listed or model_id == "openrouter/free"
+            if not is_free_openrouter_model_id(model_id) or not _zero_text_price(item.get("pricing")):
+                continue
+            architecture = item.get("architecture")
+            if isinstance(architecture, dict):
+                input_modalities = architecture.get("input_modalities")
+                output_modalities = architecture.get("output_modalities")
+                if isinstance(input_modalities, list) and "text" not in input_modalities:
+                    continue
+                if isinstance(output_modalities, list) and "text" not in output_modalities:
+                    continue
+            display_name = item.get("name")
+            result.append(AIModel(model_id, "openrouter", display_name if isinstance(display_name, str) and display_name.strip() else model_id, ModelAvailabilityStatus.AVAILABLE, ["API", "chat", "gratis"]))
+        # The official free router may not be included in the general model
+        # catalog. Its free status is documented by OpenRouter, independently
+        # of whether this catalog endpoint validates an API key.
+        if not router_listed:
+            result.insert(0, AIModel("openrouter/free", "openrouter", "Modelo gratuito automático", ModelAvailabilityStatus.AVAILABLE, ["API", "chat", "gratis"]))
+        return result
+
+
 def _get_json(request: Request, provider_name: str) -> dict:
     try:
         with urlopen(request, timeout=10) as response:  # nosec B310: fixed provider model-catalog endpoints
@@ -130,13 +216,15 @@ def _get_json(request: Request, provider_name: str) -> dict:
 
 
 class ListAvailableModels:
-    def __init__(self, providers: AIProviderRepository, models: AIModelRepository, tokens: ProviderTokenRepository, openai: OpenAIModelsClient | None = None, google: GoogleModelsClient | None = None, anthropic: AnthropicModelsClient | None = None):
+    def __init__(self, providers: AIProviderRepository, models: AIModelRepository, tokens: ProviderTokenRepository, openai: OpenAIModelsClient | None = None, google: GoogleModelsClient | None = None, anthropic: AnthropicModelsClient | None = None, groq: GroqModelsClient | None = None, openrouter: OpenRouterModelsClient | None = None):
         self.providers = providers
         self.models = models
         self.tokens = tokens
         self.openai = openai or OpenAIModelsClient()
         self.google = google or GoogleModelsClient()
         self.anthropic = anthropic or AnthropicModelsClient()
+        self.groq = groq or GroqModelsClient()
+        self.openrouter = openrouter or OpenRouterModelsClient()
 
     def execute(self, user_mail: str, provider_id: str) -> AvailableModelList:
         provider = self.providers.get(provider_id)
@@ -144,13 +232,14 @@ class ListAvailableModels:
             raise ProviderModelsUnavailableError("Proveedor no encontrado.")
 
         secret = self.tokens.get_secret(user_mail, provider_id)
-        clients = {"openai": self.openai, "google": self.google, "anthropic": self.anthropic}
+        clients = {"openai": self.openai, "google": self.google, "anthropic": self.anthropic, "groq": self.groq, "openrouter": self.openrouter}
         if secret and provider_id in clients:
             client = clients[provider_id]
             available = client.list_models(secret)
             if not available:
                 raise ProviderModelsUnavailableError(f"El token de {provider.name} se guardó, pero la API no devolvió modelos compatibles para generar texto.")
-            return AvailableModelList(provider_id, "token", "Modelos habilitados para tu token actual.", available)
+            message = "Rutas gratuitas de OpenRouter; sujetas a los límites de tu cuenta." if provider_id == "openrouter" else "Modelos del catálogo actual para tu clave; el acceso y los límites dependen de tu cuenta."
+            return AvailableModelList(provider_id, "token", message, available)
 
         if provider_id == "openai":
             return AvailableModelList(

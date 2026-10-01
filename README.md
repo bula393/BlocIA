@@ -4,7 +4,28 @@ Interfaz de chat en español con historial por usuario y la paleta original. Cla
 
 ## Abrir el sistema
 
-En PowerShell, desde esta carpeta:
+### Linux (sin `sudo`)
+
+Con Python 3.11 o posterior, Node.js 18 o posterior y npm instalados para tu usuario, ejecutá desde la carpeta del proyecto:
+
+```bash
+./run.sh
+```
+
+En el primer inicio, el script crea `back/.venv-linux`, instala PyTorch para CPU y el resto de las dependencias localmente, instala npm desde el lockfile y descarga los modelos de clasificación y chat. Hace falta conexión a internet y espacio libre para las dependencias y los modelos. Los inicios siguientes reutilizan lo ya instalado.
+
+Abrí <http://127.0.0.1:5173/nuevo-chat>. El script también permite consultar el estado y detener los servicios:
+
+```bash
+./run.sh status
+./run.sh stop
+```
+
+Backend, frontend, base SQLite, clave de cifrado y registros quedan dentro de la carpeta del proyecto. Los servidores sólo escuchan en `127.0.0.1`; no se usa Docker, PostgreSQL ni se requieren privilegios de administrador. Si falta Python, Node.js o npm, instalalos en tu usuario y volvé a correr el script.
+
+### Windows (PowerShell)
+
+Desde esta carpeta:
 
 ```powershell
 .\Start-BlocIA.ps1
@@ -45,7 +66,24 @@ Son métricas sobre ejemplos sintéticos aportados por el usuario, con agrupaci�
 - Confianza menor a 0,55: revisión manual; entre 0,55 y 0,70: baja confianza.
 - Decisiones sensibles de salud, legales o financieras: indicador de revisión humana.
 
-El servicio guarda cada consulta y su clasificación estructurada en el historial para permitir estadísticas posteriores. La clasificación se muestra al pasar el cursor sobre el indicador junto a la respuesta. `no_personal` y `personal_informativa` se responden con el modelo seleccionado; `personal_decision` no se envía al generador. Las claves conectadas habilitan las APIs de OpenAI, Google y Anthropic. Si no hay claves, Qwen3 se ejecuta en este equipo y no envía el texto a un proveedor externo.
+El servicio guarda cada consulta y su clasificación estructurada en el historial para permitir estadísticas posteriores. La clasificación se muestra al pasar el cursor sobre el indicador junto a la respuesta. `no_personal` y `personal_informativa` se responden con el modelo seleccionado; `personal_decision` no se envía al generador. Las claves conectadas habilitan las APIs de OpenAI, Google, Anthropic, Groq y OpenRouter. Si no hay claves, Qwen3 se ejecuta en este equipo y no envía el texto a un proveedor externo.
+
+## Modelos sin costo y claves personales
+
+En **Perfil técnico** podés conectar claves API de tus propias cuentas; después elegí el modelo en el chat. Las claves se cifran en la base local y se usan desde el backend. No ingreses contraseñas de Google, ChatGPT ni de otros proveedores.
+
+| Opción | Configuración | Alcance |
+| --- | --- | --- |
+| Qwen3 local | Ninguna, si descargaste los pesos con `ml.prepare` | Funciona sin cuenta ni peticiones externas. |
+| Gemini | [Crear clave en Google AI Studio](https://aistudio.google.com/app/apikey) con una cuenta Google existente y un proyecto Free Tier | [Algunos modelos tienen nivel gratuito](https://ai.google.dev/gemini-api/docs/billing/) con límites por modelo y proyecto. Revisá [precios](https://ai.google.dev/gemini-api/docs/pricing) antes de elegir. |
+| Groq | [Crear clave personal](https://console.groq.com/docs/quickstart) en una cuenta Free | Tiene [cupos gratuitos](https://console.groq.com/docs/rate-limits) por modelo. El catálogo de la API no informa el plan actual de la cuenta. |
+| OpenRouter | [Crear clave personal](https://openrouter.ai/settings/keys) | BloqIA sólo muestra rutas `:free` con precio de texto cero o `openrouter/free`, y bloquea IDs pagos al enviar. El [plan gratis](https://openrouter.ai/pricing) tiene un cupo diario. |
+
+No hace falta crear otra cuenta Google: podés usar la tuya para AI Studio. Si otro proveedor ofrece acceso con Google, ese inicio de sesión ocurre en su sitio y genera su propia clave API. BloqIA guarda sólo la clave que ingreses, nunca tu contraseña de Google. Los modelos y cuotas pueden cambiar; el catálogo confirma qué modelos devuelve el proveedor, pero no garantiza crédito disponible ni éxito de una inferencia. Una clave de un proyecto con facturación puede generar cargos según el plan de ese proveedor.
+
+### Cuenta ChatGPT Plus o Pro
+
+OpenAI documenta [Sign in with ChatGPT](https://developers.openai.com/siwc/quickstart) para usar el plan personal en peticiones elegibles a la Responses API. Está disponible para aplicaciones de código abierto y clientes privados seleccionados. BlocIA se mantiene privado, por lo que necesita [solicitar acceso para un cliente privado](https://developers.openai.com/siwc/request-client-id) y obtener la habilitación de OpenAI antes de conectar tu plan. Una clave API de OpenAI funciona en BlocIA con la cuenta de plataforma y su facturación propia; no consume el plan Plus o Pro. No reutilices cookies ni credenciales de ChatGPT o Codex como sustituto de ese flujo.
 
 El clasificador no se ajusta con conversaciones de usuarios automáticamente. El historial se guarda localmente y se ocultan correos, teléfonos y algunos nombres/domicilios explícitos antes de persistirlos. Esa detección es heurística; no garantiza eliminar todo dato identificatorio de texto libre. El usuario puede eliminar sus chats.
 

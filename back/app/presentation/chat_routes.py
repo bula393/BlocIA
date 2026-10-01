@@ -6,10 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.application.chat.ai_responder import AIResponder, AIResponseUnavailableError
+from app.application.chat.context import build_model_context
 from app.application.chat.free_models import LOCAL_MODEL_ID, local_free_models
 from app.application.chat.local_models import local_models, ModelUnavailableError
 from app.application.chat.privacy import redact_personal_data
 from app.application.chat.settings import settings
+from app.application.user.list_available_models import is_free_openrouter_model_id
 from app.domain.user.usage_event import UsageEvent
 from app.infrastructure.chat_repository import ChatRepository, ConversationNotFoundError, TurnConflictError
 from app.infrastructure.database import get_database
@@ -44,8 +46,10 @@ class SendMessage(BaseModel):
     def model_selection(self):
         if bool(self.providerId) != bool(self.modelId):
             raise ValueError("Elegí un proveedor y un modelo para generar respuestas.")
-        if self.modelId and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", self.modelId):
+        if self.modelId and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}", self.modelId):
             raise ValueError("El identificador del modelo no es válido.")
+        if self.providerId == "openrouter" and self.modelId and not is_free_openrouter_model_id(self.modelId):
+            raise ValueError("Elegí una ruta gratuita de OpenRouter.")
         return self
 
     @field_validator("prompt")
@@ -93,7 +97,7 @@ def delete_conversation(identifier: UUID, mail=Depends(chat_user), repository=De
 
 
 @router.post("/conversations/{identifier}/messages")
-def send_message(identifier: UUID, payload: SendMessage, mail=Depends(chat_user), repository=Depends(chat_repository), models=Depends(local_models), providers=Depends(provider_repo), tokens=Depends(token_repo), responder=Depends(ai_responder)):
+def send_message(identifier: UUID, payload: SendMessage, mail=Depends(chat_user), repository=Depends(chat_repository), models=Depends(local_models), providers=Depends(provider_repo), tokens=Depends(token_repo), users=Depends(user_repo), responder=Depends(ai_responder)):
     identifier, request_id = str(identifier), str(payload.requestId)
     _, config = settings()
     if len(payload.prompt) > config.max_input_characters:
@@ -124,7 +128,8 @@ def send_message(identifier: UUID, payload: SendMessage, mail=Depends(chat_user)
                     answer = "El proveedor elegido no tiene un token conectado. Conectalo desde tu perfil técnico y volvé a enviar la consulta."
                 else:
                     try:
-                        answer = responder.generate(payload.providerId, payload.modelId, payload.prompt, api_key)
+                        model_prompt = build_model_context(users.get(mail), payload.prompt, repository.messages(mail, identifier))
+                        answer = responder.generate(payload.providerId, payload.modelId, model_prompt, api_key)
                         response_provider, response_model = payload.providerId, payload.modelId
                     except AIResponseUnavailableError as error:
                         answer = str(error)

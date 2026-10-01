@@ -234,6 +234,25 @@ cambio de superficie, no con aire.
 | 768–1023 | El panel de estado desaparece; sus datos pasan a la cabecera, que crece a 72 px. |
 | ≤ 767 | El riel pasa a barra inferior de 56 px con `padding-bottom: env(safe-area-inset-bottom)`. El medidor pasa a franja horizontal de 4 px fija en el borde superior, debajo de la barra de estado del sistema. La columna ocupa el ancho completo con 16 px de margen. |
 
+#### Portada y navegación
+
+La portada conserva el papel dentro del chasis grafito. Su contenido tiene un
+máximo de 1200 px: presentación y ejemplo de conversación en dos columnas desde
+768 px, y una sola columna en móvil, con las acciones antes del ejemplo.
+El titular puede crecer de 31 a 48 px; mantiene Archivo y un solo color.
+El ejemplo se identifica explícitamente como tal, sin contadores ni actividad
+simulada. Usa blanco, filetes y una respuesta sin burbuja; su barra grafito no
+atribuye una clasificación real a contenido ilustrativo.
+
+Una secuencia de tres pasos explica perfil, herramientas y consulta de actividad.
+No agrega nuevos colores, sombras ni formas decorativas. Los destinos del riel
+incluyen etiquetas visibles y `aria-current`; el foco sobre grafito es papel
+para resultar visible. El control Uso tiene un área táctil mínima de 44 × 44 px.
+
+Referencia de accesibilidad, interacción y adaptación:
+[UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill).
+Sus recomendaciones se subordinan a la paleta y geometría de este documento.
+
 ### 6.3 Diálogos
 
 - **Ancho:** 440 px. Máximo 90 vw.

@@ -11,7 +11,7 @@ import { GoogleCallback } from '../pages/GoogleCallback';
 
 function ProtectedRouteGuard({ requestedPath }: { requestedPath: string }) {
   return (
-    <ChasisBloqIA title="Acceso requerido" activePath="/login">
+    <ChasisBloqIA title="Acceso requerido" activePath="/login" contentClassName="auth-content">
       <section className="bloq-section guard-surface" aria-label="Ruta protegida">
         <h1>Iniciá sesión para seguir</h1>
         <p className="bloq-status-line" data-state="attention">La ruta {requestedPath} requiere un token JWT válido.</p>

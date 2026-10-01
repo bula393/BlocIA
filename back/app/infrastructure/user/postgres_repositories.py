@@ -32,6 +32,8 @@ class InMemoryUserStore:
         self.providers.setdefault("openai", AIProvider("openai", "OpenAI", ProviderStatus.AVAILABLE, "OpenAI models"))
         self.providers.setdefault("google", AIProvider("google", "Google AI", ProviderStatus.AVAILABLE, "Google AI models"))
         self.providers.setdefault("anthropic", AIProvider("anthropic", "Claude · Anthropic", ProviderStatus.AVAILABLE, "Modelos Claude de Anthropic"))
+        self.providers.setdefault("groq", AIProvider("groq", "Groq", ProviderStatus.AVAILABLE, "Modelos alojados en GroqCloud; los límites dependen del plan de tu cuenta"))
+        self.providers.setdefault("openrouter", AIProvider("openrouter", "OpenRouter", ProviderStatus.AVAILABLE, "Modelos gratuitos de OpenRouter con tu clave personal"))
         self.models.setdefault("openai", [AIModel("gpt-4o-mini", "openai", "GPT-4o mini", ModelAvailabilityStatus.AVAILABLE, ["chat"])])
         self.models.setdefault("google", [AIModel("gemini-1.5-flash", "google", "Gemini 1.5 Flash", ModelAvailabilityStatus.AVAILABLE, ["chat"])])
         self.models.setdefault("anthropic", [
@@ -39,6 +41,8 @@ class InMemoryUserStore:
             AIModel("claude-sonnet-5", "anthropic", "Claude Sonnet", ModelAvailabilityStatus.AVAILABLE, ["trabajo diario", "vision", "codigo"]),
             AIModel("claude-haiku-4-5-20251001", "anthropic", "Claude Haiku", ModelAvailabilityStatus.AVAILABLE, ["rapido", "bajo consumo", "chat"]),
         ])
+        self.models.setdefault("groq", [])
+        self.models.setdefault("openrouter", [])
 
 
 class PersistentUserStore(InMemoryUserStore):

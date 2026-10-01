@@ -74,9 +74,10 @@ class Database:
         defaults = InMemoryUserStore()
         defaults.seed_defaults()
         with self.transaction():
-            if not self.query("SELECT 1 FROM providers LIMIT 1"):
-                for provider in defaults.providers.values():
+            for provider in defaults.providers.values():
+                if ProviderRepository(self).get(provider.provider_id) is None:
                     ProviderRepository(self).save(provider)
+            if not self.query("SELECT 1 FROM models LIMIT 1"):
                 for models in defaults.models.values():
                     for model in models:
                         ModelRepository(self).save(model)

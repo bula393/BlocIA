@@ -29,13 +29,13 @@ function ChatMessage({ message }: { message: Message }) {
   }
 
   return <div className="chat-response-row">
-    <article className="chat-message chat-message--assistant" aria-label="Respuesta de BloqIA">
-      <div className="chat-author"><span className="chat-avatar" aria-hidden="true">B</span><strong>BloqIA{message.providerId === 'local' ? ' · Qwen3-0.6B local' : message.modelId ? ` · ${message.modelId}` : ''}</strong></div>
+    <article className="chat-message chat-message--assistant" data-classification={classification?.label ?? 'no_personal'} data-needs-review={classification?.needs_human_review ?? false} aria-label="Respuesta de BloqIA">
+      <div className="chat-author"><span className="chat-avatar" aria-hidden="true">B</span><strong>BloqIA</strong>{(message.providerId === 'local' || message.modelId) && <span className="chat-author-model">Modelo: {message.providerId === 'local' ? 'Qwen3-0.6B local' : message.modelId}</span>}</div>
       <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown></div>
     </article>
-    {classification && <div className="chat-classification-anchor" tabIndex={0} aria-label="Ver respuesta del clasificador" aria-describedby={`classification-${message.id}`}>
-      <span className="chat-classification-indicator" aria-hidden="true">i</span>
-      <div className="chat-classification-popover" id={`classification-${message.id}`} role="tooltip">
+    {classification && <details className="chat-classification">
+      <summary>Ver clasificación</summary>
+      <div className="chat-classification-details" id={`classification-${message.id}`}>
         <strong>Clasificación del mensaje</strong>
         <p>Categoría: <b>{labelNames[classification.label]}</b></p>
         <p><code>{classification.label}</code></p>
@@ -44,11 +44,16 @@ function ChatMessage({ message }: { message: Message }) {
         <p data-review={classification.needs_human_review}>{classification.needs_human_review ? 'Revisión humana requerida' : 'No requiere revisión humana'}</p>
         {classification.probabilities && <div className="chat-classification-probabilities"><span>Probabilidades</span>{Object.entries(classification.probabilities).map(([label, probability]) => <small key={label}>{label}: {Math.round(probability * 100)} %</small>)}</div>}
       </div>
-    </div>}
+    </details>}
   </div>;
 }
 
 interface ChatModelOption { key: string; providerId: string; providerName: string; modelId: string; displayName: string }
+
+function providerLabel(providerId: string, fallback: string) {
+  const known: Record<string, string> = { local: 'En tu equipo', google: 'Google AI', groq: 'Groq', openrouter: 'OpenRouter', openai: 'OpenAI', anthropic: 'Anthropic' };
+  return known[providerId] ?? fallback.replace(/\s*·\s*/g, ', ');
+}
 
 export function NuevoChat() {
   const initialId = new URLSearchParams(window.location.search).get('chat');
@@ -85,9 +90,9 @@ export function NuevoChat() {
     ...configuredProviders.flatMap((provider) => {
       const catalog = modelCatalogQueryByProvider.get(provider.providerId)?.data;
       if (!catalog || catalog.source !== 'token') return [];
-      return catalog.models.filter((model) => model.availabilityStatus === 'available').map((model) => ({ key: `${provider.providerId}:${model.modelId}`, providerId: provider.providerId, providerName: provider.name, modelId: model.modelId, displayName: model.displayName }));
+      return catalog.models.filter((model) => model.availabilityStatus === 'available').map((model) => ({ key: `${provider.providerId}:${model.modelId}`, providerId: provider.providerId, providerName: providerLabel(provider.providerId, provider.name), modelId: model.modelId, displayName: model.displayName }));
     }),
-    ...(status?.freeModels ?? []).map((model) => ({ key: `${model.providerId}:${model.modelId}`, ...model }))
+    ...(status?.freeModels ?? []).map((model) => ({ ...model, key: `${model.providerId}:${model.modelId}`, providerName: providerLabel(model.providerId, model.providerName) }))
   ];
   const selectedModelOption = modelOptions.find((model) => model.key === selectedModel);
   const modelsLoading = !status || providerQuery.isLoading || modelCatalogQueries.some((query) => query.isLoading);
@@ -130,7 +135,9 @@ export function NuevoChat() {
     return () => controller.abort();
   }, [activeId]);
 
-  useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [messages, sending]);
+  useEffect(() => {
+    if (messages.length > 0 || sending) end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, sending]);
   useEffect(() => {
     if (textarea.current) {
       textarea.current.style.height = 'auto';
@@ -204,7 +211,7 @@ export function NuevoChat() {
     <div className="chat-layout">
       <aside className="chat-history" data-open={historyOpen} aria-label="Historial de conversaciones">
         <div className="chat-history-heading"><strong>Tus conversaciones</strong><button className="chat-mobile-toggle chat-text-button" onClick={() => setHistoryOpen(false)} aria-label="Cerrar historial">✕</button></div>
-        <button className="chat-new-button" type="button" onClick={() => selectConversation(null)} disabled={sending}>＋ Nuevo chat</button>
+        <button className="chat-new-button" type="button" onClick={() => selectConversation(null)} disabled={sending}>Nuevo chat</button>
         <div className="chat-history-list">
           {historyLoading && <p role="status">Cargando historial…</p>}
           {!historyLoading && conversations.length === 0 && <p className="chat-muted">Tus chats aparecerán acá.</p>}
@@ -214,17 +221,17 @@ export function NuevoChat() {
           </div>)}
           {historyError && <p className="bloq-error" role="alert">{historyError}</p>}
         </div>
-        <div className="chat-local-note"><span className="chat-status-dot" data-ready={status?.ready} /><div><strong>En tu equipo</strong><small>Clasificación local</small></div></div>
+        <div className="chat-local-note"><div><strong>En tu equipo</strong><small>{status ? status.ready ? 'Clasificación local lista' : 'Clasificador local no disponible' : 'Conectando con el clasificador'}</small></div></div>
       </aside>
       <section className="chat-main" aria-label="Chat con BloqIA">
-        <header className="chat-toolbar"><button type="button" className="chat-mobile-toggle chat-text-button" onClick={() => setHistoryOpen(!historyOpen)} aria-expanded={historyOpen}>☰ Historial</button><span>BloqIA <small>· Local</small></span><button type="button" className="chat-text-button" onClick={() => selectConversation(null)} disabled={sending}>Nuevo chat</button></header>
+        <header className="chat-toolbar"><button type="button" className="chat-mobile-toggle chat-text-button" onClick={() => setHistoryOpen(!historyOpen)} aria-expanded={historyOpen}>Historial</button><span>BloqIA <small>Servicio local</small></span><button type="button" className="chat-text-button chat-toolbar-new" onClick={() => selectConversation(null)} disabled={sending}>Nuevo chat</button></header>
         <div className="chat-scroll">
           {!loading && messages.length === 0 && !sending && <div className="chat-welcome">
             <div className="chat-welcome-mark" aria-hidden="true"><span /><span /></div>
-            <p className="provider-eyebrow">Clasificador de preguntas</p>
+            <p className="chat-welcome-label">Clasificador de preguntas</p>
             <h1>Clasificá tu consulta.</h1>
             <p>Escribí una consulta para ver su clasificación. Las consultas generales e informativas también reciben una respuesta del modelo elegido.</p>
-            <div className="chat-ideas">{ideas.map((idea) => <button type="button" key={idea.title} onClick={() => { setDraft(idea.prompt); textarea.current?.focus(); }}><span>{idea.title}</span><small>{idea.prompt}</small><span aria-hidden="true">↗</span></button>)}</div>
+            <div className="chat-ideas">{ideas.map((idea) => <button type="button" key={idea.title} onClick={() => { setDraft(idea.prompt); textarea.current?.focus(); }}><span>{idea.title}</span><small>{idea.prompt}</small></button>)}</div>
           </div>}
           {loading && <p className="chat-loading" role="status">Cargando conversación…</p>}
           <div className="chat-transcript" role="log" aria-label="Mensajes de la conversación" aria-live="polite">
@@ -232,13 +239,8 @@ export function NuevoChat() {
             {sending && <>
               <article className="chat-message chat-message--user"><div className="chat-markdown">{pendingPrompt}</div></article>
               <div className="chat-progress-card" role="status" aria-live="polite">
-                <div className="chat-progress-heading">
-                  <span className="chat-progress-orbit" aria-hidden="true"><i /></span>
-                  <div><strong>Estamos preparando tu respuesta</strong><small>{selectedModelOption ? `Clasificación local · respuesta con ${selectedModelOption.displayName}` : 'Clasificación local de la consulta'}</small></div>
-                </div>
-                <div className="chat-progress-track" aria-hidden="true"><span /></div>
-                <div className="chat-answer-skeleton" aria-hidden="true"><i /><i /><i /></div>
-                <small className="chat-progress-note">Si la consulta es apta, el modelo elegido la responde y la mostramos acá.</small>
+                <strong>Estamos clasificando tu consulta</strong>
+                <p>{selectedModelOption ? `Si corresponde, ${selectedModelOption.displayName} generará la respuesta.` : 'Si corresponde, el modelo disponible generará la respuesta.'}</p>
               </div>
             </>}
           </div>
@@ -254,14 +256,14 @@ export function NuevoChat() {
               <label htmlFor="chat-model">Modelo de respuesta</label>
               <select id="chat-model" value={selectedModel} onChange={(event) => setSelectedModel(event.target.value)} disabled={!modelOptions.length || sending || loading}>
                 {modelOptions.length === 0 && <option value="">Sin modelo conectado</option>}
-                {modelOptions.map((model) => <option value={model.key} key={model.key}>{model.providerName} · {model.displayName}</option>)}
+                {modelOptions.map((model) => <option value={model.key} key={model.key}>{model.displayName} — {model.providerName}</option>)}
               </select>
               {modelOptions.length === 0 && <small>{modelsLoading ? 'Buscando modelos…' : providerQuery.isError ? 'No se pudieron cargar tus proveedores.' : providerTokenAvailable ? 'No hay modelos disponibles para las claves conectadas. Revisá tu Perfil técnico.' : <>Conectá un proveedor desde <a href="/perfil-tecnico">Perfil técnico</a> para generar respuestas.</>}</small>}
-              {failedCatalogs.length > 0 && <small className="bloq-error">No se pudieron cargar modelos. {failedCatalogs.join(' · ')} Podés usar Qwen local si está instalado.</small>}
+              {failedCatalogs.length > 0 && <small className="bloq-error">No se pudieron cargar modelos. {failedCatalogs.join('; ')} Podés usar Qwen local si está instalado.</small>}
             </div>
-            <div className="chat-composer-bottom"><small>{sending ? 'Clasificando en tu equipo…' : modelsLoading ? 'Cargando modelos…' : draft.length > limit * 0.8 ? `${draft.length} / ${limit}` : 'Enter para enviar · Shift + Enter para un salto'}</small><button type="submit" className="chat-send" data-primary="true" aria-label="Enviar mensaje" disabled={!draft.trim() || sending || loading || modelsLoading || !status?.ready}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" /></svg></button></div>
+            <div className="chat-composer-bottom"><small>{sending ? 'Clasificando en tu equipo…' : modelsLoading ? 'Cargando modelos…' : draft.length > limit * 0.8 ? `${draft.length} / ${limit}` : 'Enter para enviar, Shift + Enter para un salto'}</small><button type="submit" className="chat-send" data-primary="true" aria-label="Enviar mensaje" disabled={!draft.trim() || sending || loading || modelsLoading || !status?.ready}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" /></svg></button></div>
           </form>
-          <p className="chat-footnote">El historial se guarda en este equipo. “Token conectado” indica que la clave está guardada; el proveedor puede rechazarla por permisos, cuota o facturación.</p>
+          <p className="chat-footnote">Para adaptar las respuestas usamos tu nombre visible, edad, profesión y los intercambios recientes de este chat. Si elegís un proveedor externo, se le envía ese contexto junto con tu consulta. El historial se guarda en este equipo.</p>
         </div>
       </section>
     </div>

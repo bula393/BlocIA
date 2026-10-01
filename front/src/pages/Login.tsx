@@ -18,7 +18,7 @@ export function Login() {
   }
 
   return (
-    <ChasisBloqIA title="Acceso" activePath="/login">
+    <ChasisBloqIA title="Acceso" activePath="/login" contentClassName="auth-content">
       <section className="auth-intro">
         <h1>Iniciar sesión</h1>
         <p className="bloq-reading">Usá tu cuenta para recuperar tu perfil y tus herramientas.</p>

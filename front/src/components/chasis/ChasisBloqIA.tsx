@@ -10,7 +10,7 @@ function formattedActivity(value: string | null) {
   return value ? new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : 'Todavía no registraste actividad';
 }
 
-export function ChasisBloqIA({ title, children, status, activePath = window.location.pathname }: { title: string; children: ReactNode; status?: ReactNode; activePath?: string }) {
+export function ChasisBloqIA({ title, children, status, activePath = window.location.pathname, contentClassName }: { title: string; children: ReactNode; status?: ReactNode; activePath?: string; contentClassName?: string }) {
   const [usageOpen, setUsageOpen] = useState(false);
   const isAuthenticated = getCurrentJwtStatus() === 'valid';
   const usage = useQuery({ queryKey: ['usage-today'], queryFn: getTodayUsage, enabled: isAuthenticated, retry: false });
@@ -35,7 +35,7 @@ export function ChasisBloqIA({ title, children, status, activePath = window.loca
         <span className="bloq-chip">{title === 'Inicio' ? 'BloqIA' : title}</span>
         {isAuthenticated && usage.data && <div className="bloq-compact-status" aria-label="Actividad de hoy"><span className="bloq-number">{usage.data.chatMessages ?? 0}</span><small> mensajes hoy</small></div>}
       </header>
-      <main className="bloq-content">{children}</main>
+      <main className={`bloq-content${contentClassName ? ` ${contentClassName}` : ''}`}>{children}</main>
     </div>
     {usageOpen && <aside className="bloq-usage-drawer" aria-label="Estadísticas de uso">
       <div className="bloq-usage-heading"><div><p className="provider-eyebrow">Datos guardados</p><h2>Actividad de hoy</h2></div><button type="button" onClick={() => setUsageOpen(false)} aria-label="Cerrar estadísticas">Cerrar</button></div>

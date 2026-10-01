@@ -50,7 +50,7 @@ export function GoogleCallback() {
   }
 
   return (
-    <ChasisBloqIA title="Acceso con Google" activePath="/login">
+    <ChasisBloqIA title="Acceso con Google" activePath="/login" contentClassName="auth-content">
       <section className="auth-intro">
         <h1>{pending ? 'Completá tu perfil' : 'Conectando con Google'}</h1>
         {loading && <p className="bloq-reading">Estamos verificando tu cuenta.</p>}

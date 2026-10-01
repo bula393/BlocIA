@@ -1,14 +1,14 @@
 import { getCurrentJwtStatus } from '../../app/routeGuard';
 
 const publicDestinations = [
-  { href: '/', label: 'Inicio', icon: 'home' },
-  { href: '/login', label: 'Iniciar sesión', icon: 'access' }
+  { href: '/', label: 'Inicio', shortLabel: 'Inicio', icon: 'home' },
+  { href: '/login', label: 'Iniciar sesión', shortLabel: 'Acceso', icon: 'access' }
 ];
 
 const privateDestinations = [
-  { href: '/', label: 'Inicio', icon: 'home' },
-  { href: '/nuevo-chat', label: 'Chat', icon: 'chat' },
-  { href: '/perfil-tecnico', label: 'Configuración técnica', icon: 'settings' }
+  { href: '/', label: 'Inicio', shortLabel: 'Inicio', icon: 'home' },
+  { href: '/nuevo-chat', label: 'Chat', shortLabel: 'Chat', icon: 'chat' },
+  { href: '/perfil-tecnico', label: 'Configuración técnica', shortLabel: 'Ajustes', icon: 'settings' }
 ];
 
 function Icon({ name }: { name: string }) {
@@ -24,14 +24,15 @@ export function RielLateral({ activePath, onUsage, onLogout }: { activePath: str
   const destinations = isAuthenticated ? privateDestinations : publicDestinations;
 
   return (
-    <aside className="bloq-rail" aria-label="Navegacion principal">
+    <aside className="bloq-rail" aria-label="Navegación principal">
       <a className="bloq-brand" href="/" aria-label="BloqIA, inicio">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="12" height="9" /><rect x="9" y="13" width="13" height="9" /></svg>
       </a>
       <nav className="bloq-nav">
         {destinations.map((destination) => (
-          <a key={destination.href} href={destination.href} data-active={activePath === destination.href} aria-label={destination.label} title={destination.label}>
+          <a key={destination.href} href={destination.href} data-active={activePath === destination.href} aria-current={activePath === destination.href ? 'page' : undefined} aria-label={destination.label} title={destination.label}>
             <Icon name={destination.icon} />
+            <span className="bloq-nav-label" aria-hidden="true">{destination.shortLabel}</span>
           </a>
         ))}
       </nav>

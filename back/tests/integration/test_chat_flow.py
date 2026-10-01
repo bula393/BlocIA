@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app.application.chat.local_models import local_models, ModelUnavailableError
+from app.presentation import chat_routes
 from app.infrastructure.database import Database, get_database
 from app.main import create_app
 
@@ -97,3 +98,38 @@ def test_redaction_delete_cascade_and_input_validation(sql_chat):
     assert not database.query("SELECT * FROM messages")
     assert not database.query("SELECT * FROM chat_turns")
     assert database.health()["ok"]
+
+
+def test_chat_passes_current_profile_and_conversation_to_selected_model(sql_chat, monkeypatch):
+    client, database, _ = sql_chat
+
+    class FakeResponder:
+        supported_providers = {"openai", "google", "anthropic"}
+
+        def __init__(self):
+            self.prompts = []
+
+        def generate(self, provider_id, model_id, prompt, api_key):
+            self.prompts.append(prompt)
+            return f"Respuesta {len(self.prompts)}"
+
+    responder = FakeResponder()
+    client.app.dependency_overrides[chat_routes.ai_responder] = lambda: responder
+    monkeypatch.setattr(chat_routes, "local_free_models", lambda: [{"providerId": "local", "modelId": "qwen3-local"}])
+    assert client.patch("/profile", json={"age": 29, "profession": "Docente", "displayName": "Ana"}).status_code == 200
+
+    first_conversation = client.post("/chat/conversations").json()["id"]
+    second_conversation = client.post("/chat/conversations").json()["id"]
+    payload = {"providerId": "local", "modelId": "qwen3-local"}
+    client.post(f"/chat/conversations/{second_conversation}/messages", json={**payload, "prompt": "Pregunta de otro chat", "requestId": str(uuid4())})
+    client.post(f"/chat/conversations/{first_conversation}/messages", json={**payload, "prompt": "¿Qué es una API?", "requestId": str(uuid4())})
+    client.post(f"/chat/conversations/{first_conversation}/messages", json={**payload, "prompt": "Dame un ejemplo", "requestId": str(uuid4())})
+
+    first, second = responder.prompts[-2:]
+    assert "Nombre visible: Ana" in first
+    assert "Edad: 29 años" in first
+    assert "Profesión o actividad: Docente" in first
+    assert "Pregunta de otro chat" not in first and "Pregunta de otro chat" not in second
+    assert "¿Qué es una API?" in second
+    assert "Respuesta 2" in second
+    assert second.endswith("Consulta actual:\nDame un ejemplo")

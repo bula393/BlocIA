@@ -6,6 +6,7 @@ import { getCurrentJwtStatus } from './routeGuard';
 import '../tokens/visual.css';
 import '../tokens/typography.css';
 import '../tokens/chat.css';
+import '../tokens/inicio.css';
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
