@@ -96,6 +96,8 @@ def validate_workflows() -> None:
     deploy = load_mapping(".github/workflows/deploy.yml")
     require(ci.get("name") == "CI", "CI workflow name must match the deployment workflow_run trigger")
     require(all(event in ci.get("on", {}) for event in ("push", "pull_request", "workflow_call")), "CI must support pushes, pull requests and manual deployment verification")
+    backend_steps = ci.get("jobs", {}).get("backend", {}).get("steps", [])
+    require(any(step.get("run") == "mkdir -p ../test-results" for step in backend_steps), "backend CI must create the JUnit artifact directory before pytest")
     require("pull_request" not in deploy.get("on", {}) and "pull_request_target" not in deploy.get("on", {}), "deployment must never run on pull requests")
     require(deploy.get("on", {}).get("workflow_run", {}).get("workflows") == ["CI"], "deployment must wait for CI completion")
     jobs = deploy.get("jobs", {})

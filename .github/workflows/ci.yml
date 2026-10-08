@@ -32,6 +32,8 @@ jobs:
           cache-dependency-path: back/pyproject.toml
       - name: Install backend and test dependencies
         run: python -m pip install --disable-pip-version-check -e '.[test]'
+      - name: Prepare backend test artifacts
+        run: mkdir -p ../test-results
       - name: Run backend tests without downloading model weights
         run: python -m pytest --junitxml=../test-results/backend.xml
       - name: Upload backend results
