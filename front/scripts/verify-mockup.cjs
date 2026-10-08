@@ -1,0 +1,137 @@
+const { chromium } = require('playwright');
+const { expect } = require('@playwright/test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+
+const base = process.env.MOCKUP_URL || 'http://127.0.0.1:4175/mockup.html';
+const out = path.resolve(__dirname, '../../.impeccable/review');
+let activeBrowser;
+
+(async () => {
+  await fs.mkdir(out, { recursive: true });
+  const browser = await chromium.launch({ headless: true });
+  activeBrowser = browser;
+  const errors = [];
+  const apiRequests = [];
+  const checks = [];
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (/\/api\/|\/auth\/|\/technical-profile\/|\/profile\//.test(request.url())) apiRequests.push(request.url()); });
+  const capture = async (target, name, fullPage = true) => target.screenshot({ path: path.join(out, `${name}.png`), fullPage });
+  const noOverflow = async (target, label) => {
+    const size = await target.evaluate(() => ({ width: window.innerWidth, scroll: document.documentElement.scrollWidth }));
+    assert(size.scroll <= size.width + 1, `${label}: overflow ${size.scroll} > ${size.width}`);
+  };
+  await page.goto(base);
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('h1')).toContainText('Pensá con');
+  assert(await page.evaluate(() => [...document.images].every(img => img.complete && img.naturalWidth > 0)), 'Images failed to load');
+  assert(await page.evaluate(() => document.fonts.check('500 16px Manrope') && document.fonts.check('400 16px Lora')), 'Fonts failed to load');
+  await capture(page, 'desktop');
+  await capture(page, 'desktop-hero', false);
+  for (const width of [1280, 1000, 800, 600, 390, 360]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await noOverflow(page, `landing ${width}`);
+    if (width === 1000) await capture(page, 'user-1000');
+    if (width === 390) { await capture(page, 'mobile'); await capture(page, 'mobile-hero', false); }
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.locator('[data-stage="1"]').evaluate(el => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 200));
+  await expect(page.locator('.mk-classify-result')).toContainText('Análisis personal');
+  await page.locator('[data-stage="2"]').evaluate(el => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 200));
+  await expect(page.locator('.mk-classify-result')).toContainText('Decisión personal');
+  await capture(page, 'desktop-scroll', false);
+  checks.push('Native scroll chapters update the demonstration');
+  await page.getByRole('button', { name: 'Abrí tu espacio', exact: true }).click();
+  await expect(page.locator('.mw-chat-welcome h1')).toContainText('buena');
+  await capture(page, 'desktop-chat', false);
+  await page.getByRole('button', { name: /Pensar una decisión/ }).click();
+  await page.getByRole('button', { name: 'Enviar consulta de ejemplo', exact: true }).click();
+  await expect(page.locator('.mw-transcript')).toContainText('Revisá su clasificación antes de avanzar.', { timeout: 10000 });
+  await page.locator('.mw-classification summary').click();
+  await expect(page.locator('.mw-classification-body')).toContainText('Requerida en este ejemplo');
+  await page.getByRole('button', { name: /Explorar el estado de baja confianza/ }).click();
+  await expect(page.locator('.mw-classification-body')).toContainText('Baja confianza');
+  await capture(page, 'desktop-classification', false);
+  checks.push('Personal decision response, expanded classification and low-confidence state');
+  await page.getByRole('button', { name: /^Historial/ }).click();
+  assert.equal(await page.locator('.mw-history-row').count(), 4);
+  await page.locator('.mw-delete-chat').first().click();
+  await page.getByRole('button', { name: 'Eliminar conversación', exact: true }).click();
+  assert.equal(await page.locator('.mw-history-row').count(), 3);
+  checks.push('History creates, opens and deletes demo conversations with confirmation');
+  await page.getByRole('button', { name: 'Tu perfil', exact: true }).click();
+  await page.getByLabel('Nombre visible', { exact: true }).fill('María');
+  await page.getByLabel('Edad', { exact: true }).fill('0');
+  await page.getByRole('button', { name: /Guardar cambios/ }).click();
+  await expect(page.getByRole('status')).toContainText('Revisá tu nombre');
+  await page.getByLabel('Edad', { exact: true }).fill('27');
+  await page.getByLabel('Profesión', { exact: true }).selectOption('Estudiante');
+  await page.getByRole('button', { name: /Guardar cambios/ }).click();
+  await expect(page.getByRole('status')).toContainText('Cambios guardados');
+  await capture(page, 'desktop-profile');
+  checks.push('Profile validates age, saves display name/profession and protects account email');
+  await page.getByRole('button', { name: 'Proveedores y modelos', exact: true }).click();
+  await page.locator('#mw-key-google').fill('clave-ficticia-solo-demo');
+  await page.getByRole('button', { name: 'Reemplazar', exact: true }).click();
+  await expect(page.locator('#mw-key-google')).toHaveValue('');
+  const google = page.locator('.mw-provider').filter({ has: page.getByRole('heading', { name: 'Google AI', exact: true }) });
+  await google.getByRole('button', { name: /Explorar un error de catálogo/ }).click();
+  await expect(google.getByRole('alert')).toBeVisible();
+  await google.getByRole('button', { name: /Reintentar catálogo/ }).click();
+  await expect(google.getByRole('alert')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Abrir configuración de Groq', exact: true }).click();
+  await page.locator('#mw-key-groq').fill('groq-ficticia-solo-demo');
+  const groq = page.locator('.mw-provider').filter({ has: page.getByRole('heading', { name: 'Groq', exact: true }) });
+  await groq.getByRole('button', { name: 'Conectar', exact: true }).click();
+  await expect(page.locator('#mw-key-groq')).toHaveValue('');
+  await expect(groq.locator('.mw-connection-status')).toContainText('Conectado');
+  await capture(page, 'desktop-providers');
+  assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
+  checks.push('Provider connections discard keys, clear fields, update model choices and recover catalog errors');
+  await page.getByRole('button', { name: 'Actividad', exact: true }).click();
+  await expect(page.locator('.mw-usage-overview').first()).toContainText('3');
+  await capture(page, 'desktop-usage');
+  checks.push('Activity responds to conversations, catalog updates and provider connections');
+
+  const auth = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+  auth.on('pageerror', error => errors.push(error.message));
+  await auth.goto(`${base}#/register`);
+  await auth.getByRole('button', { name: /Crear cuenta de ejemplo/ }).click();
+  await expect(auth.getByRole('alert')).toContainText('correo');
+  await auth.getByLabel('Correo electrónico', { exact: true }).fill('maria@ejemplo.com');
+  await auth.getByLabel('Contraseña de ejemplo', { exact: true }).fill('ClaveFicticia27!');
+  await auth.getByLabel('Edad', { exact: true }).fill('27');
+  await auth.getByLabel('Profesión', { exact: true }).selectOption('Estudiante');
+  await capture(auth, 'desktop-register');
+  await auth.getByRole('button', { name: /Crear cuenta de ejemplo/ }).click();
+  await expect(auth.locator('.mw-profile-account')).toContainText('maria@ejemplo.com');
+  await auth.goto(`${base}#/google`);
+  await capture(auth, 'desktop-google');
+  await auth.getByLabel('Profesión', { exact: true }).selectOption('Docente');
+  await auth.getByRole('button', { name: /Completar perfil de ejemplo/ }).click();
+  await expect(auth.locator('.mw-profile-account')).toContainText('Cuenta de Google');
+  checks.push('Registration validation and Google profile completion work without real authentication');
+
+  const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  mobile.on('pageerror', error => errors.push(error.message));
+  for (const view of ['chat', 'history', 'profile', 'providers', 'usage', 'login', 'register', 'google']) {
+    await mobile.goto(`${base}#/${view}`);
+    await mobile.waitForLoadState('networkidle');
+    await noOverflow(mobile, `mobile ${view}`);
+    await capture(mobile, `mobile-${view}`);
+  }
+  await mobile.goto(`${base}#/chat`);
+  await mobile.getByRole('button', { name: 'Abrir navegación', exact: true }).click();
+  await mobile.getByRole('button', { name: 'Proveedores y modelos', exact: true }).click();
+  await expect(mobile.locator('.mw-providers-page h1')).toContainText('Elegí');
+  checks.push('All eight internal views fit 390px and mobile navigation works');
+
+  assert.deepEqual(errors, [], 'Browser JavaScript errors');
+  assert.deepEqual(apiRequests, [], 'Mockup made real application API requests');
+  await fs.writeFile(path.join(out, 'verification.json'), JSON.stringify({ passed: true, checks, errors, apiRequests }, null, 2));
+  console.log(JSON.stringify({ passed: true, checks, screenshotDirectory: out }, null, 2));
+  await browser.close();
+})().catch(async error => { console.error(error); if (activeBrowser) await activeBrowser.close(); process.exitCode = 1; });

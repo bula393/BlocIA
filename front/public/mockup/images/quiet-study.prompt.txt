@@ -1,0 +1,11 @@
+Use case: photorealistic-natural
+Asset type: original editorial architectural photograph for BloqIA, a Spanish thinking and AI chat application.
+Primary request: a peaceful study in a contemporary concrete building, a very simple desk with a notebook and open books beside a tall window, hard sunlight creating one large diagonal across a pale warm wall. A single ultramarine-blue seat and one soft-lime book are the restrained color accents.
+Scene/backdrop: quiet sophisticated architectural interior with textured concrete, a pale paper-tone wall, a tall window and generous negative space.
+Style/medium: sophisticated architectural photography, subtle analog grain, real natural materials, tactile and calm, editorial quality.
+Composition/framing: portrait 2:3 aspect ratio. Wide enough to show the room, simple desk and single chair. Use generous negative space, the diagonal sunlight is an important compositional element. A calm composition that expresses pause, judgment and human decisions.
+Lighting/mood: strong natural sunlight entering from the tall window, a deliberate broad diagonal of light and shadow on the pale wall, quiet and contemplative.
+Color palette: graphite #18252B, pale warm paper #F4F3EE, ultramarine #244ADA on the single chair, soft lime #DAED9E on one book.
+Materials/textures: real concrete, uncoated paper, matte surfaces, natural shadows.
+Constraints: no people. No legible text, no logos, no watermarks. This is a photograph only, not a page layout or interface composition.
+Avoid: neon, futuristic decor, screens, computers, robots, glowing effects, circuits, brain imagery, excessive decoration or clutter.

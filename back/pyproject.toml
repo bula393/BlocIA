@@ -9,7 +9,8 @@ dependencies = [
     "pydantic>=2.7.0",
     "email-validator>=2.1.0",
     "PyYAML>=6.0.0",
-    "cryptography>=44"
+    "cryptography>=44",
+    "httpx>=0.27,<1"
 ]
 
 [project.optional-dependencies]
@@ -21,8 +22,7 @@ local = [
     "huggingface-hub>=0.30,<1"
 ]
 test = [
-    "pytest>=8.0.0",
-    "httpx>=0.27.0"
+    "pytest>=8.0.0"
 ]
 
 [tool.pytest.ini_options]

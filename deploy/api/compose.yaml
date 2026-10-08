@@ -1,0 +1,67 @@
+x-blocia-deployment: 1
+x-blocia-service: api
+
+services:
+  api:
+    image: ${GHCR_IMAGE_PREFIX:?Define GHCR_IMAGE_PREFIX}-api:${RELEASE_TAG:?Define RELEASE_TAG}
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    environment:
+      ENVIRONMENT: production
+      RELEASE_TAG: ${RELEASE_TAG:?Define RELEASE_TAG}
+      FRONTEND_URL: ${FRONTEND_URL:?Define FRONTEND_URL with the HTTPS domain}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:?Define ACCESS_TOKEN_SECRET}
+      BLOCIA_INFERENCE_URL: http://${BLOCIA_SERVICE_NAMESPACE:-blocia-prod}-inference:8001
+      BLOCIA_INFERENCE_TOKEN: ${BLOCIA_INFERENCE_TOKEN:?Define BLOCIA_INFERENCE_TOKEN}
+      BLOCIA_INFERENCE_TIMEOUT_SECONDS: ${BLOCIA_INFERENCE_TIMEOUT_SECONDS:-300}
+      BLOCIA_DATABASE_PATH: /app/data/blocia.sqlite3
+      BLOCIA_LOCK_MINUTES: ${BLOCIA_LOCK_MINUTES:-1440}
+      BLOCIA_PRELOAD_CLASSIFIER: "0"
+      BLOCIA_PRELOAD_LOCAL_CHAT: "0"
+      BLOCIA_DEFAULT_GOOGLE_TOKEN: ${BLOCIA_DEFAULT_GOOGLE_TOKEN:-}
+      BLOCIA_DEFAULT_GROQ_TOKEN: ${BLOCIA_DEFAULT_GROQ_TOKEN:-}
+      BLOCIA_DEFAULT_OPENROUTER_TOKEN: ${BLOCIA_DEFAULT_OPENROUTER_TOKEN:-}
+      BLOCIA_DEFAULT_OPENAI_TOKEN: ${BLOCIA_DEFAULT_OPENAI_TOKEN:-}
+      BLOCIA_DEFAULT_ANTHROPIC_TOKEN: ${BLOCIA_DEFAULT_ANTHROPIC_TOKEN:-}
+      BLOCIA_ENCRYPTION_KEY: ${BLOCIA_ENCRYPTION_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      GOOGLE_SESSION_SECRET: ${GOOGLE_SESSION_SECRET:-}
+      GOOGLE_REGISTRATION_SECRET: ${GOOGLE_REGISTRATION_SECRET:-}
+    expose:
+      - "8000"
+    volumes:
+      - api-data:/app/data
+    networks:
+      application:
+        aliases:
+          - ${BLOCIA_SERVICE_NAMESPACE:-blocia-prod}-api
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health', timeout=4).close()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    cpus: ${API_CPUS:-1.0}
+    mem_limit: ${API_MEMORY_LIMIT:-512m}
+    pids_limit: 256
+    stop_grace_period: 45s
+
+volumes:
+  api-data:
+    name: ${BLOCIA_API_VOLUME_NAME:-${BLOCIA_SERVICE_NAMESPACE:-blocia-prod}-api-data}
+
+networks:
+  application:
+    name: ${BLOCIA_NETWORK_NAME:-blocia-production}
+    external: true

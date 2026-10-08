@@ -5,6 +5,7 @@ import { CajonPerfil } from '../components/overlay/CajonPerfil';
 import { usePerfil } from '../features/usuario/usePerfil';
 import { logout } from '../api/auth';
 import { navigateTo } from '../app/navigation';
+import { Icon } from '../mockup/brand';
 import type { LoginProviderStatus, TechnicalProfileStatus } from '../types/dominio';
 
 const accessLabels: Record<LoginProviderStatus, string> = {
@@ -54,9 +55,14 @@ export function Perfil() {
     <ChasisBloqIA title="Perfil" activePath="/perfil" contentClassName="profile-content">
       <div className="profile-page">
         <header className="profile-header">
-          <p className="profile-kicker">Tu espacio de BloqIA</p>
-          <h1>Perfil</h1>
-          <p className="bloq-reading">Mantené tus datos al día para recibir explicaciones ajustadas a tu contexto.</p>
+          <div>
+            <p className="profile-kicker">Tu espacio de BloqIA</p>
+            <h1>Perfil</h1>
+            <p className="bloq-reading">Mantené tus datos al día para recibir explicaciones ajustadas a tu contexto.</p>
+          </div>
+          {profile.data && <span className="profile-initial" aria-label={`Perfil de ${(profile.data.displayName || profile.data.mail).charAt(0).toUpperCase()}`}>
+            {(profile.data.displayName || profile.data.mail).charAt(0).toUpperCase()}
+          </span>}
         </header>
 
         {profile.isLoading && <p className="profile-loading" role="status">Cargando perfil…</p>}
@@ -102,7 +108,7 @@ export function Perfil() {
                 <div><dt>Método de acceso</dt><dd>{accessLabels[profile.data.loginProviderStatus]}</dd></div>
                 <div><dt>Perfil técnico</dt><dd>{technicalLabels[profile.data.technicalProfileStatus]}</dd></div>
               </dl>
-              <a className="profile-technical-link" href="/perfil-tecnico">Administrar modelos y proveedores</a>
+              <a className="profile-technical-link" href="/perfil-tecnico"><span>Administrar modelos y proveedores</span><Icon name="arrow-up-right" size={17} /></a>
               <button className="profile-logout" type="button" onClick={() => void signOut()}>Cerrar sesión</button>
             </> : <p className="profile-summary-placeholder">Los datos de tu cuenta aparecerán acá.</p>}
           </CajonPerfil>

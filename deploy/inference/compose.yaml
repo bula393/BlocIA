@@ -1,0 +1,53 @@
+x-blocia-deployment: 1
+x-blocia-service: inference
+
+services:
+  inference:
+    image: ${GHCR_IMAGE_PREFIX:?Define GHCR_IMAGE_PREFIX}-inference:${RELEASE_TAG:?Define RELEASE_TAG}
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    environment:
+      ENVIRONMENT: production
+      RELEASE_TAG: ${RELEASE_TAG:?Define RELEASE_TAG}
+      BLOCIA_INFERENCE_TOKEN: ${BLOCIA_INFERENCE_TOKEN:?Define BLOCIA_INFERENCE_TOKEN}
+      BLOCIA_ENABLE_LOCAL_CHAT: ${BLOCIA_ENABLE_LOCAL_CHAT:-0}
+      BLOCIA_PREPARE_MODELS: ${BLOCIA_PREPARE_MODELS:-1}
+      BLOCIA_PRELOAD_CLASSIFIER: "1"
+      OMP_NUM_THREADS: ${INFERENCE_CPU_THREADS:-2}
+      MKL_NUM_THREADS: ${INFERENCE_CPU_THREADS:-2}
+    expose:
+      - "8001"
+    volumes:
+      - inference-models:/app/models
+    networks:
+      application:
+        aliases:
+          - ${BLOCIA_SERVICE_NAMESPACE:-blocia-prod}-inference
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8001/ready', timeout=4).close()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20m
+      retries: 3
+    cpus: ${INFERENCE_CPUS:-2.0}
+    mem_limit: ${INFERENCE_MEMORY_LIMIT:-6g}
+    pids_limit: 256
+    stop_grace_period: 120s
+
+volumes:
+  inference-models:
+    name: ${BLOCIA_MODELS_VOLUME_NAME:-${BLOCIA_SERVICE_NAMESPACE:-blocia-prod}-inference-models}
+
+networks:
+  application:
+    name: ${BLOCIA_NETWORK_NAME:-blocia-production}
+    external: true

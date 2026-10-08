@@ -1,49 +1,75 @@
+import { useState } from 'react';
 import { getCurrentJwtStatus } from '../../app/routeGuard';
+import { Brand, Icon } from '../../mockup/brand';
 
-const publicDestinations = [
-  { href: '/', label: 'Inicio', shortLabel: 'Inicio', icon: 'home' },
-  { href: '/login', label: 'Iniciar sesión', shortLabel: 'Acceso', icon: 'access' }
+type Destination = { href: string; label: string; icon: string };
+
+const publicDestinations: Destination[] = [
+  { href: '/', label: 'Inicio', icon: 'home' },
+  { href: '/login', label: 'Iniciar sesión', icon: 'user' },
+  { href: '/register', label: 'Crear cuenta', icon: 'plus' }
 ];
 
-const privateDestinations = [
-  { href: '/', label: 'Inicio', shortLabel: 'Inicio', icon: 'home' },
-  { href: '/nuevo-chat', label: 'Chat', shortLabel: 'Chat', icon: 'chat' },
-  { href: '/perfil-tecnico', label: 'Configuración técnica', shortLabel: 'Ajustes', icon: 'settings' }
+const conversationDestinations: Destination[] = [
+  { href: '/nuevo-chat', label: 'Chat', icon: 'chat' }
 ];
 
-function Icon({ name }: { name: string }) {
-  if (name === 'chat') return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3h14v11H8l-5 3V3Z" /><line x1="6" y1="7" x2="14" y2="7" /><line x1="6" y1="10" x2="11" y2="10" /></svg>;
-  if (name === 'home') return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="14" height="14" /><line x1="6" y1="8" x2="14" y2="8" /><line x1="6" y1="11" x2="14" y2="11" /><line x1="6" y1="14" x2="11" y2="14" /></svg>;
-  if (name === 'profile') return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="3" width="6" height="6" /><path d="M3 17 5 11h10l2 6" /></svg>;
-  if (name === 'settings') return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="4" width="12" height="12" /><line x1="7" y1="8" x2="13" y2="8" /><line x1="7" y1="12" x2="13" y2="12" /></svg>;
-  return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="3" width="12" height="14" /><line x1="7" y1="10" x2="16" y2="10" /><path d="m12 7 3 3-3 3" /></svg>;
+const accountDestinations: Destination[] = [
+  { href: '/perfil', label: 'Perfil', icon: 'profile' },
+  { href: '/perfil-tecnico', label: 'Proveedores y modelos', icon: 'settings' },
+  { href: '/actividad', label: 'Actividad', icon: 'usage' }
+];
+
+function destinationIsActive(destination: Destination, activePath: string) {
+  return activePath === destination.href;
 }
 
-export function RielLateral({ activePath, onUsage, onLogout }: { activePath: string; onUsage: () => void; onLogout: () => void }) {
-  const isAuthenticated = getCurrentJwtStatus() === 'valid';
-  const destinations = isAuthenticated ? privateDestinations : publicDestinations;
+function DestinationList({ destinations, activePath, close }: { destinations: Destination[]; activePath: string; close: () => void }) {
+  return <nav className="bloq-nav">
+    {destinations.map((destination) => {
+      const active = destinationIsActive(destination, activePath);
+      return <a key={destination.href} href={destination.href} title={destination.label} data-active={active} aria-current={active ? 'page' : undefined} onClick={close}>
+        <Icon name={destination.icon} size={18} />
+        <span>{destination.label}</span>
+      </a>;
+    })}
+  </nav>;
+}
 
-  return (
-    <aside className="bloq-rail" aria-label="Navegación principal">
-      <a className="bloq-brand" href="/" aria-label="BloqIA, inicio">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="12" height="9" /><rect x="9" y="13" width="13" height="9" /></svg>
-      </a>
-      <nav className="bloq-nav">
-        {destinations.map((destination) => (
-          <a key={destination.href} href={destination.href} data-active={activePath === destination.href} aria-current={activePath === destination.href ? 'page' : undefined} aria-label={destination.label} title={destination.label}>
-            <Icon name={destination.icon} />
-            <span className="bloq-nav-label" aria-hidden="true">{destination.shortLabel}</span>
-          </a>
-        ))}
-      </nav>
+export function RielLateral({ activePath, title, collapsed, chatLocked = false, onToggleCollapse, onLogout }: { activePath: string; title: string; collapsed: boolean; chatLocked?: boolean; onToggleCollapse: () => void; onLogout: () => void }) {
+  const isAuthenticated = getCurrentJwtStatus() === 'valid';
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = () => setMenuOpen(false);
+
+  return <>
+    <header className="bloq-mobilebar">
+      <button className="bloq-menu-button" type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-label={menuOpen ? 'Cerrar navegación' : 'Abrir navegación'}><Icon name={menuOpen ? 'close' : 'menu'} /></button>
+      <a href="/" aria-label="BloqIA, inicio"><Brand /></a>
+      <span className="bloq-mobile-title">{title}</span>
+    </header>
+    <button className="bloq-sidebar-backdrop" type="button" aria-label="Cerrar navegación" aria-hidden={!menuOpen} tabIndex={menuOpen ? 0 : -1} onClick={closeMenu} data-open={menuOpen} />
+    <aside className="bloq-rail" aria-label="Navegación principal" data-open={menuOpen}>
+      <div className="bloq-sidebar-head">
+        <div className="bloq-sidebar-brand-group">
+          <a className="bloq-sidebar-brand" href="/" aria-label="BloqIA, inicio" title="BloqIA, inicio"><Brand /></a>
+          {chatLocked && <span className="bloq-chat-lock" role="img" aria-label="Chat bloqueado" title="Chat bloqueado"><Icon name="lock" size={14} /></span>}
+        </div>
+        <button className="bloq-sidebar-collapse" type="button" onClick={onToggleCollapse} aria-label={collapsed ? 'Expandir menú' : 'Compactar menú'} aria-expanded={!collapsed} title={collapsed ? 'Expandir menú' : 'Compactar menú'} data-collapsed={collapsed}>
+          <Icon name="chevron" size={17} />
+        </button>
+        <button className="bloq-sidebar-close" type="button" aria-label="Cerrar navegación" onClick={closeMenu}><Icon name="close" /></button>
+      </div>
+      {isAuthenticated ? <>
+        <p className="bloq-nav-caption">CONVERSACIONES</p>
+        <DestinationList destinations={conversationDestinations} activePath={activePath} close={closeMenu} />
+        <p className="bloq-nav-caption bloq-nav-caption--account">TU ESPACIO</p>
+        <DestinationList destinations={accountDestinations} activePath={activePath} close={closeMenu} />
+      </> : <DestinationList destinations={publicDestinations} activePath={activePath} close={closeMenu} />}
       <div className="bloq-rail-footer">
-        {isAuthenticated && <button className="bloq-usage-button" type="button" onClick={onUsage} aria-label="Ver estadísticas de uso">Uso</button>}
-        {isAuthenticated && <a className="bloq-avatar-wrap" href="/perfil" aria-label="Ver perfil">
-          <span className="bloq-avatar" aria-hidden="true">B</span>
-          <span className="bloq-session-dot" aria-hidden="true" />
-        </a>}
-        {isAuthenticated && <button className="bloq-logout-button" type="button" onClick={onLogout}>Cerrar sesión</button>}
+        {isAuthenticated && <a className="bloq-account-link" href="/perfil" title="Tu cuenta" onClick={closeMenu}><span className="bloq-avatar" aria-hidden="true">B</span><span className="bloq-account-label"><strong>Tu cuenta</strong><small>Perfil y preferencias</small></span><Icon name="chevron" size={16} /></a>}
+        {isAuthenticated && <button className="bloq-logout-button" type="button" title="Cerrar sesión" onClick={onLogout}><Icon name="logout" size={16} /><span>Cerrar sesión</span></button>}
+        {!isAuthenticated && <p className="bloq-sidebar-note">Una pregunta puede abrir otra perspectiva.</p>}
       </div>
     </aside>
-  );
+  </>;
 }

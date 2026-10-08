@@ -2,6 +2,12 @@
 
 Interfaz de chat en español con historial por usuario y la paleta original. Clasifica cada consulta con **E5 multilingüe + regresión logística**. Las consultas generales e informativas reciben una respuesta en Markdown del modelo elegido. Sin claves de proveedor, usa **Qwen3-0.6B local** si está instalado.
 
+## Despliegue por servicios
+
+El proyecto incluye tres recursos independientes de Dokploy para frontend, API e inferencia, conectados por una red privada. Cada uno tiene su configuración y sus controles de despliegue; GitHub Actions verifica cada push y actualiza los tres después de que pasen las pruebas.
+
+Seguí la [guía de Dokploy](docs/dokploy.md) para crear el proyecto, conectar el dominio y completar los valores manuales. Creá un servicio con [inferencia](deploy/inference/compose.yaml), otro con [API](deploy/api/compose.yaml) y otro con [frontend](deploy/frontend/compose.yaml). Cada carpeta incluye sus variables de ejemplo. Las automatizaciones están en [CI](.github/workflows/ci.yml) y [despliegue](.github/workflows/deploy.yml). El Compose local está en [compose.yaml](compose.yaml).
+
 ## Abrir el sistema
 
 ### Linux (sin `sudo`)
@@ -35,10 +41,10 @@ Abrir http://127.0.0.1:5173/nuevo-chat y crear una cuenta o iniciar sesión. Par
 
 ## Configuración y fuentes
 
-- `back/ml/source/`: copias originales de los dos Markdown aportados. No fueron modificadas.
+- `back/ml/source/`: documentos de referencia y ejemplos aportados, con una nota que aclara que la etiqueta depende de la intención, no de la puntuación.
 - `back/config/classifier.yaml`: modelo, prefijo `query: `, etiquetas y umbrales tomados del documento.
 - `back/config/chat.yaml`: límites de entrada, hilos de CPU y patrones para detectar decisiones sensibles.
-- `back/ml/dataset.jsonl`: 370 ejemplos extraídos del Markdown, conservando las etiquetas originales.
+- `back/ml/dataset.jsonl`: corpus de entrenamiento materializado por `back/ml/train.py`, con al menos 1.000 ejemplos únicos por etiqueta. Incluye el material de origen, ejemplos personales aportados y ampliaciones reproducibles de `back/ml/expanded_examples.py`.
 - `back/ml/artifacts/classifier.json`: pesos entrenados, sin objetos pickle ejecutables.
 - `back/ml/artifacts/training-report.json`: particiones, métricas por clase, matriz de confusión, huella de los datos y revisión del encoder.
 
@@ -52,11 +58,11 @@ cd back
 .\.venv\Scripts\python.exe -m ml.train
 ```
 
-`prepare` descarga los pesos públicos del encoder E5 y Qwen3-0.6B fijado a una revisión. El encoder se guarda en `back/models/embeddings` y el generador gratuito en `back/models/chat`; el manifiesto del encoder queda en `back/models/manifest.json`. `train` trabaja sin conexión y conserva los grupos de preguntas casi idénticas en una misma partición. Se usaron 259 ejemplos para entrenar, 37 para elegir la regularización y 74 para evaluar; la prueba no se usa para elegir hiperparámetros.
+`prepare` descarga los pesos públicos del encoder E5 y Qwen3-0.6B fijado a una revisión. El encoder se guarda en `back/models/embeddings` y el generador gratuito en `back/models/chat`; el manifiesto del encoder queda en `back/models/manifest.json`. `train` trabaja sin conexión, comprueba el mínimo de 1.000 ejemplos únicos por etiqueta y conserva las variantes casi idénticas en una misma partición. La ampliación incluye preguntas, pedidos directos, frases y enunciados; la forma interrogativa por sí sola no determina la etiqueta. El informe registra los tamaños de entrenamiento, validación y prueba.
 
-La evaluación inicial obtuvo **macro F1 = 0,9586** y **recall de personal_decision = 1,0000**, con 71/74 predicciones correctas. Los criterios de aceptación adoptados en la configuración son macro F1 ≥ 0,80 y recall de decisiones ≥ 0,85. Si fallan, el entrenamiento no publica pesos nuevos y el servicio no anuncia el clasificador como listo.
+La evaluación actual obtuvo **macro F1 = 0,9911** y **recall de personal_decision = 0,9843** sobre 782 ejemplos de prueba. Los criterios de aceptación son macro F1 ≥ 0,80 y recall de decisiones ≥ 0,85. Si fallan, el entrenamiento no publica pesos nuevos y el servicio no anuncia el clasificador como listo.
 
-Son métricas sobre ejemplos sintéticos aportados por el usuario, con agrupación por semejanza léxica. No garantizan ese resultado sobre consultas reales ni eliminan todo solapamiento semántico.
+Son métricas sobre un corpus sintético que combina ejemplos que compartiste con variantes generadas, agrupadas por semejanza léxica. No garantizan el mismo resultado sobre consultas reales ni eliminan todo solapamiento semántico.
 
 ## Resultado de clasificación
 
@@ -66,9 +72,31 @@ Son métricas sobre ejemplos sintéticos aportados por el usuario, con agrupaci�
 - Confianza menor a 0,55: revisión manual; entre 0,55 y 0,70: baja confianza.
 - Decisiones sensibles de salud, legales o financieras: indicador de revisión humana.
 
-El servicio guarda cada consulta y su clasificación estructurada en el historial para permitir estadísticas posteriores. La clasificación se muestra al pasar el cursor sobre el indicador junto a la respuesta. `no_personal` y `personal_informativa` se responden con el modelo seleccionado; `personal_decision` no se envía al generador. Las claves conectadas habilitan las APIs de OpenAI, Google, Anthropic, Groq y OpenRouter. Si no hay claves, Qwen3 se ejecuta en este equipo y no envía el texto a un proveedor externo.
+El servicio guarda cada consulta completada y su clasificación estructurada en el historial para permitir estadísticas posteriores. `no_personal` se responde con el modelo seleccionado. Al terminar la clasificación de una consulta `personal_informativa`, el chat pregunta si querés usar una de tus 3 respuestas personales diarias; recién después de aceptar se prepara la respuesta y se envía al modelo cuando corresponde. Cancelar no consume cupo ni guarda mensajes. `personal_decision` no se envía al generador. La confirmación aparece dentro del recuadro de envío. La barra al pie de ese mismo recuadro se llena con las consultas personales usadas y muestra cuántas quedan antes del bloqueo. Las claves conectadas habilitan las APIs de OpenAI, Google, Anthropic, Groq y OpenRouter. Si no hay claves, Qwen3 se ejecuta en este equipo y no envía el texto a un proveedor externo.
 
-## Modelos sin costo y claves personales
+Las consultas parecidas a los grupos del material aportado —sentimentales, de salud, cotidianas y de planes— reciben una respuesta predefinida en español. Estas respuestas quedan en el historial y no se envían al modelo ni a un proveedor externo.
+
+## Rendimiento del chat
+
+El encoder se carga y ejecuta una consulta de preparación al iniciar el backend, antes de aceptar mensajes. Esto traslada la espera inicial al arranque. `BLOCIA_PRELOAD_CLASSIFIER=0` permite desactivar esa preparación. Con `BLOCIA_PRELOAD_LOCAL_CHAT=1` también se carga Qwen al arrancar; de forma predeterminada se carga al primer uso para ahorrar memoria cuando se elige la nube.
+
+Las matrices y los patrones del clasificador se preparan una vez. Una caché de 128 resultados evita repetir la inferencia para preguntas idénticas; guarda huellas SHA-256 y clasificaciones, sin conservar los textos. Se invalida cuando cambian los pesos, archivos del encoder, manifiesto, evaluación o configuración. Los fragmentos de consultas largas conservan el solapamiento y la detección de decisiones sensibles al final del texto.
+
+Qwen usa `local_model_dtype: float32` en `back/config/chat.yaml`: mejoró la velocidad en la CPU de esta instalación frente al bfloat16 del modelo. Sus pesos ocupan aproximadamente el doble de memoria; se puede elegir `auto` y reiniciar el backend para volver a la precisión del archivo original. La generación conserva el límite de 1024 tokens y usa la caché de atención.
+
+Las peticiones a la nube comparten un [cliente HTTP con conexiones persistentes](https://www.python-httpx.org/advanced/clients/), con credenciales individuales por petición. El contexto recupera solo los cuatro últimos intercambios respondidos. La interfaz deja de consultar el progreso al comenzar la generación y muestra la respuesta sin esperar al siguiente intervalo de 300 ms.
+
+Mediciones locales del 4/10/2026: en los 74 ejemplos de evaluación, el tiempo mediano de clasificación sin caché pasó de 14,19 a 12,18 ms y los resultados completos fueron idénticos. Para cuatro consultas repetidas, el promedio pasó de 72,24 a 0,44 ms usando la caché. En una generación fija de 32 tokens, Qwen pasó de 3,45 a 4,52 tokens/s al usar float32. Estas cifras dependen del equipo y la longitud de entrada; no se midió la latencia real de los proveedores externos.
+
+## Modelos predeterminados y claves personales
+
+### Gemini predeterminado
+
+El servidor puede ofrecer `gemini-3.8-flash` como modelo de respaldo para quienes no conecten una clave propia. Desde `back`, ejecutá `python -m app.application.chat.google_defaults`; la clave se solicita sin mostrarla, se valida contra el catálogo de Google y se cifra en `back/data`, excluido de Git. También se puede configurar `BLOCIA_FREE_GOOGLE_KEY` en el entorno del backend. Conservá juntos `.free-google.token` y `.free-google.key` para respaldar la instalación.
+
+Las claves personales siguen teniendo prioridad. Si no hay ninguna, los mensajes se envían a Google con esta clave compartida y usan la cuota o facturación del proyecto asociado. Gemini 3.8 Flash puede generar cargos según el plan del proyecto; revisá sus límites y precios antes de habilitarla para otras personas.
+
+Si Google devuelve `ACCOUNT_STATE_INVALID`, indica que la cuenta de servicio vinculada a la clave está deshabilitada o eliminada. Para conservar la misma clave, [habilitá esa cuenta](https://docs.cloud.google.com/iam/docs/service-accounts-disable-enable) en el proyecto de Google Cloud. Si fue eliminada, Google permite [restaurarla dentro de los 30 días posteriores](https://docs.cloud.google.com/iam/docs/service-accounts-delete-undelete). El backend conserva la clave cifrada y muestra esta causa específica; el estado de la cuenta se corrige en Google Cloud.
 
 ### Modelo remoto gratuito por defecto
 
@@ -80,7 +108,7 @@ Después de obtener una clave desde https://openrouter.ai/settings/keys sin comp
 .\.venv\Scripts\python.exe -m app.application.chat.remote_defaults
 ```
 
-La entrada es oculta. El comando valida el catálogo y una inferencia gratuita antes de guardar la clave cifrada en `back/data`, excluido de Git. Conservá juntos `.free-openrouter.token` y `.free-openrouter.key` para respaldarla. También se puede configurar `BLOCIA_FREE_OPENROUTER_KEY` en el entorno del backend. Al abrir un chat nuevo, el selector prioriza el modelo remoto de respaldo frente al local cuando no hay modelos de claves personales; una clave personal de OpenRouter tiene prioridad al enviar. Las consultas que se respondan con ese modelo se envían a OpenRouter y al proveedor remoto elegido por su router. Los límites gratuitos pueden agotarse; no se cambia automáticamente a una ruta paga.
+La entrada es oculta. El comando valida el catálogo y una inferencia gratuita antes de guardar la clave cifrada en `back/data`, excluido de Git. Conservá juntos `.free-openrouter.token` y `.free-openrouter.key` para respaldarla. También se puede configurar `BLOCIA_FREE_OPENROUTER_KEY` en el entorno del backend. Al abrir un chat nuevo, el selector prioriza los modelos de claves personales; sin ellos ofrece Gemini, OpenRouter gratuito y Qwen local, en ese orden. Una clave personal de OpenRouter tiene prioridad al enviar. Las consultas que se respondan con ese modelo se envían a OpenRouter y al proveedor remoto elegido por su router. Los límites gratuitos pueden agotarse; no se cambia automáticamente a una ruta paga.
 
 En **Perfil técnico** podés conectar claves API de tus propias cuentas; después elegí el modelo en el chat. Las claves se cifran en la base local y se usan desde el backend. No ingreses contraseñas de Google, ChatGPT ni de otros proveedores.
 
@@ -107,7 +135,13 @@ Las claves de proveedores se cifran con Fernet. La clave de cifrado queda en `ba
 
 Variables opcionales: `BLOCIA_DATABASE_PATH`, `BLOCIA_DATA_PATH` (JSON anterior), `ACCESS_TOKEN_SECRET`, `BLOCIA_ENCRYPTION_KEY`, `FRONTEND_URL`, `BLOCIA_API_URL` (proxy de desarrollo). No subir `back/data`, claves ni modelos al repositorio.
 
+En desarrollo, completá los tokens predeterminados de `back/.env.dev`; en una instalación nueva, copialo desde `back/.env.dev.example`. Reiniciá el backend para aplicar los cambios. Las claves personales de cada usuario tienen prioridad; los valores globales nunca se devuelven al navegador. El catálogo de OpenRouter sigue limitado a modelos gratuitos.
+
+`BLOCIA_LOCK_MINUTES` configura la duración del bloqueo en minutos enteros positivos; el valor predeterminado es `1440` (24 horas). Los límites siguen siendo 3 consultas personales y 3 horas de uso de IA en una ventana móvil de 24 horas. Cuando vence un bloqueo, comienza un nuevo cupo sin borrar los chats ni las métricas históricas. Un valor vacío, inválido o no positivo conserva la duración predeterminada.
+
 `GET /health` ejecuta comprobaciones de integridad y relaciones de la base. `GET /chat/status`, autenticado, informa la disponibilidad del clasificador y las métricas de entrenamiento.
+
+Para reiniciar el contador móvil de 24 horas y desbloquear una cuenta de forma administrativa, ejecutá `python scripts/reset_user_daily_limit.py` desde `back` con el mismo `BLOCIA_DATABASE_PATH` que usa el backend. El comando solicita el correo, un motivo y una confirmación escrita con el correo. Guarda la fecha y el motivo del reinicio, quita el bloqueo actual y conserva los chats y métricas históricas.
 
 Para verificar la base instalada con registros temporales que se revierten al terminar: `python -m ml.verify_database` desde `back`, usando el Python de `.venv`. Para respaldos en caliente, usar la API `sqlite3.Connection.backup`; no copiar solamente el archivo principal mientras hay escrituras activas.
 
@@ -192,3 +226,9 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ```
 
 Referencias oficiales: [E5 multilingüe](https://huggingface.co/intfloat/multilingual-e5-small), [Sentence Transformers](https://www.sbert.net/docs/package_reference/sentence_transformer/model.html).
+
+### Modelos Google y cuota del proyecto
+
+`models.list` devuelve el catálogo, pero no confirma que un proyecto pueda generar respuestas con cada modelo. BloqIA cruza ese catálogo con `back/data/google-model-access.json`, un registro local ignorado por Git de los cupos revisados en AI Studio. El selector ofrece solamente los modelos de chat con RPM, TPM y RPD positivos. El servidor también rechaza selecciones antiguas fuera de ese registro.
+
+El registro contiene `credentialSha256` (SHA-256 de la clave efectiva, sin guardarla), `projectId`, `checkedAt`, `source` y `models`: una lista de objetos con `modelId`, `chat`, `rpm`, `tpm` y `rpd`. Puede cambiarse su ruta con `BLOCIA_GOOGLE_MODEL_ACCESS_PATH`. Al cambiar de clave o de proyecto, hay que verificar sus límites en https://aistudio.google.com/rate-limit y actualizar el registro; las cuotas de la clave anterior no se heredan. La lista se consulta de nuevo en cada petición. Al cambiar el plan o los límites también debe actualizarse: este registro es una verificación manual fechada, no una consulta de cuota en tiempo real. Cuota positiva no garantiza capacidad ni saldo disponible en el momento del envío.

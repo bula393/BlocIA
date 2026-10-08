@@ -23,6 +23,23 @@ class Database:
                 connection.execute("ALTER TABLE messages ADD COLUMN provider_id TEXT")
             if "model_id" not in message_columns:
                 connection.execute("ALTER TABLE messages ADD COLUMN model_id TEXT")
+            turn_columns = {row["name"] for row in connection.execute("PRAGMA table_info(chat_turns)")}
+            if "phase" not in turn_columns:
+                connection.execute("ALTER TABLE chat_turns ADD COLUMN phase TEXT NOT NULL DEFAULT 'classifying'")
+            if "completed_at" not in turn_columns:
+                connection.execute("ALTER TABLE chat_turns ADD COLUMN completed_at REAL")
+            if "duration_seconds" not in turn_columns:
+                connection.execute("ALTER TABLE chat_turns ADD COLUMN duration_seconds REAL NOT NULL DEFAULT 0")
+            connection.execute(
+                "UPDATE chat_turns SET completed_at=COALESCE((SELECT CAST(strftime('%s',messages.created_at) AS REAL) "
+                "FROM messages WHERE messages.conversation_id=chat_turns.conversation_id AND messages.request_id=chat_turns.request_id "
+                "AND messages.role='assistant' LIMIT 1),started_at), "
+                "duration_seconds=MAX(0,COALESCE((SELECT CAST(strftime('%s',messages.created_at) AS REAL) "
+                "FROM messages WHERE messages.conversation_id=chat_turns.conversation_id AND messages.request_id=chat_turns.request_id "
+                "AND messages.role='assistant' LIMIT 1),started_at)-started_at) "
+                "WHERE state='completed' AND completed_at IS NULL"
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS turns_completed_at ON chat_turns(completed_at)")
         finally:
             connection.close()
         self._seed_and_import(legacy_path)

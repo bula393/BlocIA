@@ -1,7 +1,10 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
+import { AuthLayout } from '../components/auth/AuthLayout';
+import { Icon } from '../mockup/brand';
 import { useLogin } from '../features/usuario/useLogin';
+import { startGoogleLogin } from '../api/auth';
 import { navigateTo } from '../app/navigation';
+import { authErrorMessage } from '../components/auth/authErrorMessage';
 
 export function Login() {
   const [mail, setMail] = useState('');
@@ -9,7 +12,7 @@ export function Login() {
   const login = useLogin();
 
   useEffect(() => {
-    if (login.data) navigateTo('/perfil', true);
+    if (login.data) navigateTo('/', true);
   }, [login.data]);
 
   function submit(event: FormEvent) {
@@ -17,28 +20,21 @@ export function Login() {
     login.mutate({ mail, password });
   }
 
-  return (
-    <ChasisBloqIA title="Acceso" activePath="/login" contentClassName="auth-content">
-      <section className="auth-intro">
-        <h1>Iniciar sesión</h1>
-        <p className="bloq-reading">Usá tu cuenta para recuperar tu perfil y tus herramientas.</p>
-      </section>
-      <form className="bloq-form" onSubmit={submit}>
-        <label>
-          Correo electrónico
-          <input value={mail} onChange={(event) => setMail(event.target.value)} type="email" required />
-        </label>
-        <label>
-          Contraseña
-          <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" required />
-        </label>
-        <div className="bloq-actions">
-          <button type="submit" data-primary="true">Iniciar sesión</button>
-        </div>
-      </form>
-      {login.isError && <p className="bloq-error">No se pudo iniciar sesión. Revisá tus datos e intentá de nuevo.</p>}
-      {login.data && <p className="bloq-success">Sesión iniciada para {login.data.user.mail}</p>}
-      <p className="auth-secondary"><span>¿Todavía no tenés cuenta?</span><a href="/register">Crear cuenta</a></p>
-    </ChasisBloqIA>
-  );
+  return <AuthLayout>
+    <section className="auth-intro">
+      <p className="provider-eyebrow">VOLVÉ A TU ESPACIO</p>
+      <h1>Iniciar sesión</h1>
+      <p>Recuperá tus conversaciones, tu perfil y tus herramientas.</p>
+    </section>
+    <button className="auth-google-button" type="button" onClick={startGoogleLogin}><span className="auth-google-mark" aria-hidden="true">G</span>Continuar con Google<Icon name="arrow-up-right" size={16} /></button>
+    <div className="auth-divider"><span>o con correo electrónico</span></div>
+    <form className="bloq-form auth-form" onSubmit={submit}>
+      <label>Correo electrónico<input autoComplete="email" value={mail} onChange={(event) => setMail(event.target.value)} type="email" required /></label>
+      <label>Contraseña<input autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} type="password" required /></label>
+      <button type="submit" data-primary="true" disabled={login.isPending}>{login.isPending ? 'Ingresando…' : 'Iniciar sesión'}<Icon name="arrow" size={17} /></button>
+    </form>
+    {login.isError && <p className="bloq-error auth-feedback" role="alert">{authErrorMessage(login.error, 'login')}</p>}
+    {login.data && <p className="bloq-success auth-feedback" role="status">Sesión iniciada para {login.data.user.mail}</p>}
+    <p className="auth-secondary"><span>¿Todavía no tenés cuenta?</span><a href="/register">Crear cuenta</a></p>
+  </AuthLayout>;
 }

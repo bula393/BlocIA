@@ -1,0 +1,106 @@
+name: blocia
+
+x-runtime: &runtime
+  restart: unless-stopped
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+services:
+  frontend:
+    <<: *runtime
+    build:
+      context: ./front
+      args:
+        RELEASE_TAG: ${RELEASE_TAG:-development}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    environment:
+      BLOCIA_API_UPSTREAM: api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - application
+    cpus: "0.5"
+    mem_limit: 128m
+    pids_limit: 128
+    stop_grace_period: 30s
+
+  api:
+    <<: *runtime
+    build:
+      context: ./back
+      target: api
+    environment:
+      ENVIRONMENT: development
+      RELEASE_TAG: ${RELEASE_TAG:-development}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:?Define ACCESS_TOKEN_SECRET}
+      BLOCIA_INFERENCE_URL: http://inference:8001
+      BLOCIA_INFERENCE_TOKEN: ${BLOCIA_INFERENCE_TOKEN:?Define BLOCIA_INFERENCE_TOKEN}
+      BLOCIA_INFERENCE_TIMEOUT_SECONDS: ${BLOCIA_INFERENCE_TIMEOUT_SECONDS:-300}
+      BLOCIA_DATABASE_PATH: /app/data/blocia.sqlite3
+      BLOCIA_LOCK_MINUTES: ${BLOCIA_LOCK_MINUTES:-1440}
+      BLOCIA_PRELOAD_CLASSIFIER: "0"
+      BLOCIA_PRELOAD_LOCAL_CHAT: "0"
+      BLOCIA_DEFAULT_GOOGLE_TOKEN: ${BLOCIA_DEFAULT_GOOGLE_TOKEN:-}
+      BLOCIA_DEFAULT_GROQ_TOKEN: ${BLOCIA_DEFAULT_GROQ_TOKEN:-}
+      BLOCIA_DEFAULT_OPENROUTER_TOKEN: ${BLOCIA_DEFAULT_OPENROUTER_TOKEN:-}
+      BLOCIA_DEFAULT_OPENAI_TOKEN: ${BLOCIA_DEFAULT_OPENAI_TOKEN:-}
+      BLOCIA_DEFAULT_ANTHROPIC_TOKEN: ${BLOCIA_DEFAULT_ANTHROPIC_TOKEN:-}
+      BLOCIA_ENCRYPTION_KEY: ${BLOCIA_ENCRYPTION_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8080/api/auth/google/callback}
+      GOOGLE_SESSION_SECRET: ${GOOGLE_SESSION_SECRET:-}
+      GOOGLE_REGISTRATION_SECRET: ${GOOGLE_REGISTRATION_SECRET:-}
+    volumes:
+      - api-data:/app/data
+    depends_on:
+      inference:
+        condition: service_healthy
+    networks:
+      - application
+    cpus: ${API_CPUS:-1.0}
+    mem_limit: ${API_MEMORY_LIMIT:-512m}
+    pids_limit: 256
+    stop_grace_period: 45s
+
+  inference:
+    <<: *runtime
+    build:
+      context: ./back
+      target: inference
+    environment:
+      ENVIRONMENT: development
+      RELEASE_TAG: ${RELEASE_TAG:-development}
+      BLOCIA_INFERENCE_TOKEN: ${BLOCIA_INFERENCE_TOKEN:?Define BLOCIA_INFERENCE_TOKEN}
+      BLOCIA_ENABLE_LOCAL_CHAT: ${BLOCIA_ENABLE_LOCAL_CHAT:-0}
+      BLOCIA_PREPARE_MODELS: ${BLOCIA_PREPARE_MODELS:-1}
+      BLOCIA_PRELOAD_CLASSIFIER: "1"
+      OMP_NUM_THREADS: ${INFERENCE_CPU_THREADS:-2}
+      MKL_NUM_THREADS: ${INFERENCE_CPU_THREADS:-2}
+    volumes:
+      - inference-models:/app/models
+    networks:
+      - application
+    cpus: ${INFERENCE_CPUS:-2.0}
+    mem_limit: ${INFERENCE_MEMORY_LIMIT:-6g}
+    pids_limit: 256
+    stop_grace_period: 120s
+
+volumes:
+  api-data:
+  inference-models:
+
+networks:
+  # The API needs outgoing access to user-selected external AI providers.
+  application:

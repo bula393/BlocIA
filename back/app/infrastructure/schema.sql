@@ -45,9 +45,26 @@ CREATE TABLE IF NOT EXISTS chat_turns (
     conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     request_id TEXT NOT NULL, prompt_hash TEXT NOT NULL,
     state TEXT NOT NULL CHECK(state IN ('pending', 'completed', 'failed')),
-    started_at REAL NOT NULL, PRIMARY KEY(conversation_id, request_id)
+    started_at REAL NOT NULL,
+    completed_at REAL,
+    duration_seconds REAL NOT NULL DEFAULT 0,
+    phase TEXT NOT NULL DEFAULT 'classifying' CHECK(phase IN ('classifying', 'generating')),
+    PRIMARY KEY(conversation_id, request_id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS one_pending_turn ON chat_turns(conversation_id) WHERE state = 'pending';
+CREATE TABLE IF NOT EXISTS user_usage_locks (
+    user_mail TEXT PRIMARY KEY REFERENCES users(mail) ON DELETE CASCADE,
+    lock_until REAL NOT NULL,
+    reasons TEXT NOT NULL CHECK(json_valid(reasons)),
+    updated_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS user_usage_resets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_mail TEXT NOT NULL REFERENCES users(mail) ON DELETE CASCADE,
+    reset_at REAL NOT NULL,
+    reason TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS usage_resets_by_user ON user_usage_resets(user_mail, reset_at);
 CREATE TABLE IF NOT EXISTS messages (
     sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE,
     conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,

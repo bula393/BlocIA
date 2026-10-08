@@ -4,6 +4,7 @@ from app.application.user.list_technical_providers import ListTechnicalProviders
 from app.application.user.list_available_models import ListAvailableModels, ProviderModelsUnavailableError
 from app.application.user.remove_provider_token import RemoveProviderToken
 from app.application.user.save_provider_token import ProviderUnavailableError, SaveProviderToken
+from app.application.chat.default_provider_tokens import default_provider_token
 from .dependencies import current_user_mail, model_repo, provider_repo, token_repo, usage_repo
 from .errors import error_response, validation_error_response
 from .serializers import provider_schema, token_status
@@ -16,7 +17,12 @@ router = APIRouter(tags=["TechnicalProfile"])
 @router.get("/technical-profile/providers")
 def list_providers(mail: str = Depends(current_user_mail), providers=Depends(provider_repo), models=Depends(model_repo), tokens=Depends(token_repo)):
     rows = ListTechnicalProviders(providers, models, tokens).execute(mail)
-    return {"providers": [provider_schema(row["provider"], row["models"], token_status(row["provider"].provider_id, row["token_status"].value, row["token"])) for row in rows]}
+    return {"providers": [provider_schema(
+        row["provider"],
+        row["models"],
+        token_status(row["provider"].provider_id, row["token_status"].value, row["token"]),
+        bool(default_provider_token(row["provider"].provider_id)),
+    ) for row in rows]}
 
 
 @router.get("/technical-profile/providers/{provider_id}/models")

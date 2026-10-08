@@ -19,7 +19,7 @@ def normalized(text):
     return " ".join(re.findall(r"\w+", "".join(c for c in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(c))))
 
 
-def extract_examples(source, labels):
+def extract_examples(source, labels, minimum_per_label=30):
     examples = {}
     for line in source.splitlines():
         if "|" not in line:
@@ -33,8 +33,9 @@ def extract_examples(source, labels):
         if key in examples and examples[key]["label"] != label:
             raise ValueError(f"Contradictory labels for: {text}")
         examples[key] = {"text": text, "label": label}
-    if any(count < 30 for count in Counter(row["label"] for row in examples.values()).values()):
-        raise ValueError("At least 30 examples per label are required")
+    counts = Counter(row["label"] for row in examples.values())
+    if any(counts[label] < minimum_per_label for label in labels):
+        raise ValueError(f"At least {minimum_per_label} examples per label are required; found {dict(counts)}")
     if set(row["label"] for row in examples.values()) != set(labels):
         raise ValueError("The dataset must contain all configured labels")
     return list(examples.values())
@@ -70,7 +71,12 @@ def main():
     torch.set_num_threads(4)
     config = yaml.safe_load((ROOT / "config/classifier.yaml").read_text(encoding="utf-8"))
     source = (ROOT / "ml/source/datos_entrenamiento_clasificador_preguntas.md").read_text(encoding="utf-8")
-    rows = extract_examples(source, config["labels"])
+    from ml.expanded_examples import generate_examples
+    generated = generate_examples()
+    expanded_source = source + "\n\n## Ejemplos ampliados generados de forma reproducible\n\n" + "\n".join(
+        f'{index}. {row["text"]} | {row["label"]}' for index, row in enumerate(generated, 1)
+    )
+    rows = extract_examples(expanded_source, config["labels"], config["minimum_examples_per_label"])
     artifact_dir = ROOT / "ml/artifacts"
     artifact_dir.mkdir(parents=True, exist_ok=True)
     (ROOT / "ml/dataset.jsonl").write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
@@ -100,13 +106,13 @@ def main():
     passed = metrics["macro avg"]["f1-score"] >= gate["macro_f1"] and metrics["personal_decision"]["recall"] >= gate["personal_decision_recall"]
     manifest = json.loads((ROOT / "models/manifest.json").read_text(encoding="utf-8"))
     report = {
-        "trained_at": datetime.now(timezone.utc).isoformat(), "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
-        "examples": len(rows), "counts": dict(Counter(labels)), "near_duplicate_groups": len(set(groups)),
+        "trained_at": datetime.now(timezone.utc).isoformat(), "source_sha256": hashlib.sha256(expanded_source.encode()).hexdigest(),
+        "examples": len(rows), "counts": dict(Counter(labels)), "minimum_examples_per_label": config["minimum_examples_per_label"], "near_duplicate_groups": len(set(groups)),
         "split": {name: {"count": len(indexes), "counts": dict(Counter(labels[indexes])), "indexes": indexes.tolist()} for name, indexes in [("train", train), ("validation", validation), ("test", test)]},
         "selection": {"C": chosen_c, "validation_macro_f1": best_score, "candidates": [{"C": c, "validation_macro_f1": score} for score, c, _ in candidates]},
         "test": metrics, "confusion_matrix": confusion_matrix(labels[test], predictions, labels=config["labels"]).tolist(),
         "label_order": config["labels"], "quality_gate": gate, "passed": bool(passed), "encoder": manifest["embeddings"],
-        "limitations": "Evaluation on synthetic examples supplied by the user, grouped by lexical similarity. It does not establish accuracy on real-world queries or eliminate semantic overlap.",
+        "limitations": "Evaluation on a synthetic corpus combining user-supplied examples with deterministic generated variants, grouped by lexical similarity. It does not establish accuracy on real-world queries or eliminate semantic overlap.",
     }
     (artifact_dir / "training-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(classification_report(labels[test], predictions, zero_division=0), flush=True)

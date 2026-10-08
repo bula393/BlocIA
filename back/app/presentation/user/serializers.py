@@ -33,12 +33,13 @@ def model_schema(model: AIModel) -> dict:
     }
 
 
-def provider_schema(provider: AIProvider, models: list[AIModel], status: dict) -> dict:
+def provider_schema(provider: AIProvider, models: list[AIModel], status: dict, default_token_available: bool = False) -> dict:
     return {
         "providerId": provider.provider_id,
         "name": provider.name,
         "status": provider.status.value,
         "description": provider.description,
         "tokenStatus": status,
+        "defaultTokenAvailable": default_token_available,
         "models": [model_schema(model) for model in models],
     }

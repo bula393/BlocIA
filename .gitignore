@@ -22,6 +22,12 @@ front/playwright-report/
 # Environment
 .env
 .env.*
+!back/.env.dev.example
+!deploy/.env.example
+!deploy/**/.env.example
+deployment-report.json
+test-reports/
+test-results/
 
 # OS / editors
 .DS_Store

@@ -1,9 +1,9 @@
 {
-  "name": "BloqIA",
+  "name": "BloqIA | Pensá con perspectiva",
   "short_name": "BloqIA",
-  "start_url": "/login",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFF6DB",
-  "theme_color": "#17212B",
-  "icons": []
+  "background_color": "#F4F3EE",
+  "theme_color": "#244ADA",
+  "icons": [{ "src": "/mockup/logo.svg", "sizes": "any", "type": "image/svg+xml" }]
 }

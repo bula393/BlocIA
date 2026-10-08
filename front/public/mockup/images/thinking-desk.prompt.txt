@@ -1,0 +1,11 @@
+Use case: photorealistic-natural
+Asset type: original editorial photographic asset for a Spanish thinking and AI chat application called BloqIA; this is only a photograph, not a website or interface mockup.
+Primary request: an intimate horizontal 3:2 editorial studio photograph of a real desk with an open pale-paper notebook, an asymmetric sculptural stack of solid dark ultramarine blue geometric blocks, and human hands tracing a simple abstract idea with a graphite pencil.
+Scene/backdrop: quiet tangible workspace, close framing, graphite gray desk surface.
+Style/medium: high-end editorial photography with believable physical materials, subtly visible analog grain, natural imperfect texture.
+Composition/framing: close, artistic, asymmetric composition, sculptural blocks and notebook balanced in the frame; human hands enter naturally and draw in the notebook.
+Lighting/mood: soft natural light from the side with deliberate sculptural shadows, thoughtful and calm mood.
+Color palette: graphite #18252B, warm pale paper #F4F3EE, ultramarine #244ADA and a small restrained soft-lime #DAED9E accent.
+Materials/textures: matte solid blocks, textured paper, real skin detail, natural pencil graphite, tactile surfaces.
+Constraints: horizontal 3:2 aspect ratio. Keep notebook marks purely abstract and nonverbal. Anatomically natural hands. No page composition, no text, no lettering, no branding, no watermarks.
+Avoid: futuristic imagery, circuits, brain symbols, holograms, glowing effects, generic AI iconography, screens or computers.

@@ -7,6 +7,8 @@ import '../tokens/visual.css';
 import '../tokens/typography.css';
 import '../tokens/chat.css';
 import '../tokens/inicio.css';
+import '../tokens/brand.css';
+import '../tokens/workspace.css';
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);

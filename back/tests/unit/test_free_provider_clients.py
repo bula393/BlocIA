@@ -1,6 +1,6 @@
 import io
 import json
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from uuid import uuid4
 
 import pytest
@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from app.application.chat.ai_responder import AIResponder, MODEL_SYSTEM_INSTRUCTION
 from app.application.user import list_available_models
-from app.application.user.list_available_models import GroqModelsClient, OpenRouterModelsClient, ProviderModelsUnavailableError
+from app.application.user.list_available_models import GoogleModelsClient, GroqModelsClient, OpenRouterModelsClient, ProviderModelsUnavailableError
 from app.presentation.chat_routes import SendMessage
 
 
@@ -16,11 +16,14 @@ def test_groq_catalog_uses_own_key_and_excludes_non_chat_models(monkeypatch):
     requests = []
 
     def respond(request, timeout):
+        if request.get_header("User-agent") != "BlocIA/0.1":
+            raise HTTPError(request.full_url, 403, "Forbidden", {}, io.BytesIO(b"error code: 1010"))
         requests.append(request)
         return io.BytesIO(json.dumps({"data": [
             {"id": "llama-3.1-8b-instant", "active": True},
             {"id": "openai/gpt-oss-20b", "active": True},
             {"id": "whisper-large-v3", "active": True},
+            {"id": "openai/gpt-oss-safeguard-20b", "active": True},
             {"id": "old-model", "active": False},
         ]}).encode())
 
@@ -31,6 +34,43 @@ def test_groq_catalog_uses_own_key_and_excludes_non_chat_models(monkeypatch):
     assert [model.model_id for model in models] == ["llama-3.1-8b-instant", "openai/gpt-oss-20b"]
     assert requests[0].full_url == "https://api.groq.com/openai/v1/models"
     assert requests[0].get_header("Authorization") == "Bearer groq-private-key"
+
+
+def test_google_catalog_only_offers_models_for_text_chat(monkeypatch):
+    items = [
+        {"name": "models/gemini-2.5-flash", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-2.5-flash-preview-tts", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-live-native-audio", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-flash-image", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/text-embedding", "supportedGenerationMethods": ["embedContent"]},
+    ]
+    monkeypatch.setattr(list_available_models, "urlopen", lambda request, timeout: io.BytesIO(json.dumps({"models": items}).encode()))
+    assert [model.model_id for model in GoogleModelsClient().list_models("test-key")] == ["gemini-2.5-flash"]
+
+
+@pytest.mark.parametrize("client", [GoogleModelsClient(), GroqModelsClient()], ids=["google", "groq"])
+def test_provider_catalog_explains_outbound_network_block_without_echoing_key(monkeypatch, client):
+    def block_request(*args, **kwargs):
+        raise URLError(PermissionError("blocked"))
+
+    monkeypatch.setattr(list_available_models, "urlopen", block_request)
+
+    with pytest.raises(ProviderModelsUnavailableError, match="conexión saliente") as error:
+        client.list_models("private-provider-key")
+
+    assert "private-provider-key" not in str(error.value)
+
+
+def test_google_catalog_explains_disabled_service_account_without_echoing_provider_body(monkeypatch):
+    def reject(request, timeout):
+        body = {"error": {"message": "private-provider-key", "details": [{"reason": "ACCOUNT_STATE_INVALID"}]}}
+        raise HTTPError(request.full_url, 403, "Forbidden", {}, io.BytesIO(json.dumps(body).encode()))
+
+    monkeypatch.setattr(list_available_models, "urlopen", reject)
+    with pytest.raises(ProviderModelsUnavailableError, match="ACCOUNT_STATE_INVALID") as error:
+        GoogleModelsClient().list_models("private-provider-key")
+    assert "cuenta de servicio" in str(error.value)
+    assert "private-provider-key" not in str(error.value)
 
 
 def test_openrouter_catalog_only_returns_zero_price_free_routes(monkeypatch):

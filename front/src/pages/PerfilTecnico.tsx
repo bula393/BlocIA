@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
 import { usePerfilTecnico } from '../features/usuario/usePerfilTecnico';
 import { listAvailableModels } from '../api/technicalProfile';
+import { ApiRequestError } from '../api/client';
+import { Icon } from '../mockup/brand';
 import type { AIModel, ProviderWithModels } from '../types/dominio';
 
 const guides: Record<string, { tier: string; detail: string; keys: string; conditions: string }> = {
@@ -19,7 +21,13 @@ function providerLabel(provider: ProviderWithModels) {
   return known[provider.providerId] ?? provider.name.replace(/\s*·\s*/g, ', ');
 }
 
+function providerMark(providerId: string) {
+  const marks: Record<string, string> = { google: 'G', openai: 'O', anthropic: 'A', groq: 'G', openrouter: 'R' };
+  return marks[providerId] ?? providerId.slice(0, 1).toUpperCase();
+}
+
 function modelPurpose(providerId: string, model: AIModel) {
+  if (providerId === 'google') return 'Cuota de texto habilitada en el proyecto; sujeta a límites de consumo';
   if (providerId === 'openrouter') return 'Ruta gratuita de OpenRouter, sujeta a los límites de tu cuenta';
   if (providerId === 'groq') return 'Modelo de Groq; verificá el cupo de tu plan';
   if (providerId === 'anthropic') {
@@ -43,7 +51,7 @@ function ModelCatalog({ provider, models }: { provider: ProviderWithModels; mode
       <div className="model-card__content">
         <div className="model-card__heading">
           <div><h4>{model.displayName}</h4><code className="model-id">{model.modelId}</code></div>
-          <span className="model-availability">En catálogo</span>
+          <span className="model-availability">{provider.providerId === 'google' ? 'Cuota habilitada' : 'En catálogo'}</span>
         </div>
         <p>{modelPurpose(provider.providerId, model)}</p>
         <div className="model-meta">{model.capabilities.map((capability) => <span className="model-chip" key={capability}>{capability}</span>)}</div>
@@ -69,23 +77,27 @@ function ProviderSection({ provider, token, setToken, save, remove }: {
     retry: false
   });
   const configured = provider.tokenStatus.status === 'configured';
-  const displayedModels = catalog.data?.models ?? provider.models;
+  const defaultAvailable = Boolean(provider.defaultTokenAvailable);
+  const displayedModels = catalog.isError ? [] : catalog.data?.models ?? (provider.providerId === 'google' ? [] : provider.models);
   const saving = save.isPending && save.variables?.providerId === provider.providerId;
   const removing = remove.isPending && remove.variables === provider.providerId;
+  const catalogError = catalog.error instanceof ApiRequestError
+    ? catalog.error.message
+    : 'No se pudo consultar el catálogo. Revisá la conexión del servidor y la clave del proveedor.';
 
   return <section className="provider-section" id={`provider-${provider.providerId}`}>
     <header className="provider-section__header">
-      <div><h2>{providerLabel(provider)}</h2></div>
+      <div className="provider-heading"><span className={`provider-mark provider-mark--${provider.providerId}`} aria-hidden="true">{providerMark(provider.providerId)}</span><h2>{providerLabel(provider)}</h2></div>
       {guide && <span className="provider-tier">{guide.tier}</span>}
     </header>
-    {guide && <div className="provider-guide"><p>{guide.detail}</p><div className="provider-guide__links"><a href={guide.keys} target="_blank" rel="noopener noreferrer">Abrir consola de claves <span aria-hidden="true">↗</span></a><a href={guide.conditions} target="_blank" rel="noopener noreferrer">Ver condiciones y cupos <span aria-hidden="true">↗</span></a></div></div>}
+    {guide && <div className="provider-guide"><p>{guide.detail}</p><div className="provider-guide__links"><a href={guide.keys} target="_blank" rel="noopener noreferrer">Abrir consola de claves <Icon name="arrow-up-right" size={14} /></a><a href={guide.conditions} target="_blank" rel="noopener noreferrer">Ver condiciones y cupos <Icon name="arrow-up-right" size={14} /></a></div></div>}
     <div className="provider-connection">
-      <div><span>Clave personal de API</span><strong>{configured ? `Guardada: ${provider.tokenStatus.maskedTokenLabel ?? '••••'}` : 'Sin clave configurada'}</strong></div>
+      <div><span>Credencial activa</span><strong>{configured ? `Clave personal guardada: ${provider.tokenStatus.maskedTokenLabel ?? '••••'}` : defaultAvailable ? 'Token predeterminado del proyecto' : 'Sin clave configurada'}</strong></div>
     </div>
     <div className="model-catalog__header"><h3>Modelos del proveedor</h3><button type="button" className="model-refresh" onClick={() => void catalog.refetch()} disabled={catalog.isFetching}>Actualizar catálogo</button></div>
     {catalog.isFetching && <p role="status">Cargando modelos...</p>}
-    {catalog.isError && <p className="bloq-error">No se pudo consultar el catálogo. Revisá la clave y volvé a intentar.</p>}
-    {catalog.data && <p className="model-catalog__note" data-state={catalog.data.source === 'token' ? 'safe' : 'attention'}>{catalog.data.message}</p>}
+    {catalog.isError && <p className="bloq-error">{catalogError}</p>}
+    {catalog.data && <p className="model-catalog__note" data-state={catalog.data.source === 'token' || catalog.data.source === 'default' ? 'safe' : 'attention'}>{catalog.data.message}</p>}
     {displayedModels.length > 0 && <ModelCatalog provider={provider} models={displayedModels} />}
     <label className="provider-token-field"><span>Clave API de {providerLabel(provider)}</span><input aria-label={`Clave API ${providerLabel(provider)}`} value={token} onChange={(event) => setToken(event.target.value)} placeholder="Pegá tu clave API personal" type="password" autoComplete="off" spellCheck={false} /></label>
     <p className="provider-secret-help">Pegá una clave API de este proveedor. No ingreses tu contraseña de Google, ChatGPT ni Claude.</p>
@@ -103,9 +115,9 @@ export function PerfilTecnico() {
   });
 
   return <ChasisBloqIA title="Perfil técnico" activePath="/perfil-tecnico" contentClassName="technical-profile-content">
-    <div className="technical-intro"><p className="provider-eyebrow">Configuración</p><h1>Proveedores y modelos</h1><p>Elegí cómo querés generar respuestas. Conectá cada proveedor con una clave API de tu propia cuenta.</p></div>
+    <div className="technical-intro"><p className="provider-eyebrow">Configuración</p><h1>Proveedores y modelos</h1><p>Elegí cómo querés generar respuestas. Podés usar los tokens predeterminados del proyecto o conectar una clave personal.</p></div>
     <div className="provider-free-summary" aria-label="Opciones de uso gratuito">
-      <div><strong>Qwen local</strong><span>Sin cuenta ni clave</span><a href="/nuevo-chat">Usar en el chat</a></div>
+      <div><span className="provider-local-mark" aria-hidden="true"><Icon name="layers" size={20} /></span><strong>Qwen local</strong><span>Sin cuenta ni clave</span><a href="/nuevo-chat">Usar en el chat <Icon name="arrow-up-right" size={15} /></a></div>
       <div><strong>Gemini</strong><span>Nivel gratuito según modelo</span><a href="#provider-google">Configurar</a></div>
       <div><strong>Groq</strong><span>Plan gratuito con cupos</span><a href="#provider-groq">Configurar</a></div>
       <div><strong>OpenRouter</strong><span>Rutas gratuitas</span><a href="#provider-openrouter">Configurar</a></div>

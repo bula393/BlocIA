@@ -25,4 +25,5 @@ class ProviderWithModels(BaseModel):
     name: str
     status: str
     tokenStatus: ProviderTokenStatus
+    defaultTokenAvailable: bool = False
     models: list[AIModelSchema]

@@ -38,12 +38,13 @@ export interface ProviderWithModels {
   status: ProviderStatus;
   description?: string | null;
   tokenStatus: ProviderTokenStatus;
+  defaultTokenAvailable?: boolean;
   models: AIModel[];
 }
 
 export interface AvailableModelsResponse {
   providerId: string;
-  source: 'token' | 'free' | 'catalog';
+  source: 'token' | 'default' | 'free' | 'catalog';
   message: string;
   models: AIModel[];
 }

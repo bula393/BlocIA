@@ -11,6 +11,8 @@ from urllib.request import Request, urlopen
 from app.domain.user.ai_model import AIModel
 from app.domain.user.enums import ModelAvailabilityStatus
 from app.domain.user.repositories import AIModelRepository, AIProviderRepository, ProviderTokenRepository
+from app.application.chat.default_provider_tokens import default_provider_token
+from app.application.chat.google_model_access import google_quota_models, UNVERIFIED_GOOGLE_QUOTA
 
 
 class ProviderModelsUnavailableError(Exception):
@@ -89,6 +91,7 @@ class GoogleModelsClient:
     def list_models(self, api_key: str) -> list[AIModel]:
         page_token = None
         result = []
+        excluded_terms = ("tts", "audio", "live", "image", "robotics")
         for _ in range(10):
             query = urlencode({"pageToken": page_token}) if page_token else ""
             url = "https://generativelanguage.googleapis.com/v1beta/models" + (f"?{query}" if query else "")
@@ -104,6 +107,8 @@ class GoogleModelsClient:
                 name = item.get("name")
                 if isinstance(name, str) and name.startswith("models/"):
                     model_id = name.removeprefix("models/")
+                    if any(term in model_id.lower() for term in excluded_terms):
+                        continue
                     result.append(AIModel(model_id, "google", item.get("displayName") or model_id, ModelAvailabilityStatus.AVAILABLE, ["API", "chat"]))
             page_token = payload.get("nextPageToken")
             if not page_token:
@@ -138,13 +143,15 @@ class GroqModelsClient:
     def list_models(self, api_key: str) -> list[AIModel]:
         request = Request(
             "https://api.groq.com/openai/v1/models",
-            headers={"Authorization": f"Bearer {api_key}"},
+            # Groq's edge rejects urllib's default Python user agent (HTTP 403,
+            # error 1010) before API authentication, hiding the chat catalog.
+            headers={"Authorization": f"Bearer {api_key}", "User-Agent": "BlocIA/0.1"},
         )
         payload = _get_json(request, "Groq")
         items = payload.get("data")
         if not isinstance(items, list):
             raise ProviderModelsUnavailableError("Groq devolvió una lista de modelos inválida.")
-        excluded_terms = ("whisper", "tts", "speech", "audio", "orpheus", "prompt-guard")
+        excluded_terms = ("whisper", "tts", "speech", "audio", "orpheus", "prompt-guard", "safeguard", "llama-guard")
         return [
             AIModel(item["id"], "groq", item["id"], ModelAvailabilityStatus.AVAILABLE, ["API", "chat"])
             for item in items
@@ -205,10 +212,31 @@ def _get_json(request: Request, provider_name: str) -> dict:
         with urlopen(request, timeout=10) as response:  # nosec B310: fixed provider model-catalog endpoints
             payload = json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
+        if provider_name == "Google AI" and error.code in {401, 403}:
+            try:
+                provider_error = json.loads(error.read(8192)).get("error", {})
+                details = provider_error.get("details", []) if isinstance(provider_error, dict) else []
+                account_disabled = isinstance(details, list) and any(
+                    isinstance(item, dict) and item.get("reason") == "ACCOUNT_STATE_INVALID"
+                    for item in details
+                )
+            except (ValueError, AttributeError, OSError):
+                account_disabled = False
+            if account_disabled:
+                raise ProviderModelsUnavailableError(
+                    "Google rechazó la clave porque su cuenta de servicio está deshabilitada o eliminada "
+                    "(ACCOUNT_STATE_INVALID). Reactivá esa cuenta en el proyecto de la clave o conectá una clave vigente."
+                ) from error
         if error.code in {400, 401, 403}:
             raise ProviderModelsUnavailableError(f"La clave de {provider_name} no es válida o no tiene acceso al catálogo de modelos.") from error
         raise ProviderModelsUnavailableError(f"{provider_name} no pudo entregar sus modelos en este momento.") from error
-    except (URLError, TimeoutError, json.JSONDecodeError) as error:
+    except URLError as error:
+        if isinstance(error.reason, PermissionError):
+            raise ProviderModelsUnavailableError(
+                f"El entorno del servidor bloqueó la conexión saliente con {provider_name}."
+            ) from error
+        raise ProviderModelsUnavailableError(f"No se pudieron consultar los modelos de {provider_name}.") from error
+    except (TimeoutError, json.JSONDecodeError) as error:
         raise ProviderModelsUnavailableError(f"No se pudieron consultar los modelos de {provider_name}.") from error
     if not isinstance(payload, dict):
         raise ProviderModelsUnavailableError(f"{provider_name} devolvió una respuesta de catálogo inválida.")
@@ -232,14 +260,30 @@ class ListAvailableModels:
             raise ProviderModelsUnavailableError("Proveedor no encontrado.")
 
         secret = self.tokens.get_secret(user_mail, provider_id)
+        source = "token"
+        if not secret:
+            secret = default_provider_token(provider_id)
+            source = "default"
         clients = {"openai": self.openai, "google": self.google, "anthropic": self.anthropic, "groq": self.groq, "openrouter": self.openrouter}
         if secret and provider_id in clients:
+            allowed_google = google_quota_models(secret) if provider_id == "google" else None
+            if allowed_google is not None and not allowed_google:
+                raise ProviderModelsUnavailableError(UNVERIFIED_GOOGLE_QUOTA)
             client = clients[provider_id]
             available = client.list_models(secret)
+            if allowed_google is not None:
+                available = [model for model in available if model.model_id in allowed_google]
             if not available:
-                raise ProviderModelsUnavailableError(f"El token de {provider.name} se guardó, pero la API no devolvió modelos compatibles para generar texto.")
-            message = "Rutas gratuitas de OpenRouter; sujetas a los límites de tu cuenta." if provider_id == "openrouter" else "Modelos del catálogo actual para tu clave; el acceso y los límites dependen de tu cuenta."
-            return AvailableModelList(provider_id, "token", message, available)
+                raise ProviderModelsUnavailableError(f"No se encontraron modelos compatibles para {provider.name}.")
+            if source == "default":
+                message = "Se usa el token predeterminado del proyecto; el consumo corresponde a la cuenta configurada en el servidor."
+                if provider_id == "openrouter":
+                    message += " Solo se ofrecen rutas gratuitas de OpenRouter."
+            else:
+                message = "Rutas gratuitas de OpenRouter; sujetas a los límites de tu cuenta." if provider_id == "openrouter" else "Modelos del catálogo actual para tu clave; el acceso y los límites dependen de tu cuenta."
+            if provider_id == "google":
+                message += " Solo se muestran modelos de texto con cuota positiva verificada en AI Studio para este proyecto. Los cupos pueden agotarse o cambiar; actualizá el registro si cambia tu plan."
+            return AvailableModelList(provider_id, source, message, available)
 
         if provider_id == "openai":
             return AvailableModelList(
@@ -248,6 +292,9 @@ class ListAvailableModels:
                 "Sin token no hay modelos de la API de OpenAI. Estos son modelos open-weight gratuitos para ejecutar localmente.",
                 OPEN_WEIGHT_MODELS,
             )
+
+        if provider_id == "google":
+            return AvailableModelList(provider_id, "catalog", "Conectá una clave de Google y verificá los cupos de su proyecto en AI Studio.", [])
 
         return AvailableModelList(
             provider_id,

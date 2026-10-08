@@ -1,4 +1,4 @@
-.bloq-shell[data-chat="true"] { height: 100dvh; min-height: 0; grid-template-columns: 76px minmax(0, 1fr); }
+.bloq-shell[data-chat="true"] { height: 100dvh; min-height: 0; }
 .bloq-shell[data-chat="true"] .bloq-work { width: 100%; max-width: none; height: 100%; min-height: 0; margin: 0; grid-template-rows: 56px minmax(0, 1fr); }
 .bloq-shell[data-chat="true"] .bloq-content { width: 100%; max-width: none; min-height: 0; height: 100%; margin: 0; padding: 0; }
 
@@ -44,7 +44,7 @@
 .chat-response-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 8px; margin: 16px 0 32px; }
 .chat-message { margin: 12px 0 24px; min-width: 0; font-size: 16px; line-height: 1.7; overflow-wrap: anywhere; }
 .chat-message--user { width: fit-content; max-width: 84%; margin-left: auto; background: var(--azul-8); border: 1px solid var(--grafito-12); border-radius: 6px 6px 0 6px; padding: 12px 16px; }
-.chat-response-row .chat-message--assistant { margin: 0; border-left: 3px solid var(--color-verde); padding-left: 16px; }
+.chat-response-row .chat-message--assistant { margin: 0; border-left: 1px solid var(--color-verde); padding-left: 16px; }
 .chat-message--assistant[data-needs-review="true"], .chat-message--assistant[data-classification^="personal_"] { border-left-color: var(--color-salmon); }
 .chat-author { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13px; }
 .chat-author-model { color: var(--color-gris); font-size: 13px; }
@@ -61,6 +61,9 @@
 .chat-markdown table { display: block; max-width: 100%; overflow: auto; border-collapse: collapse; font-size: 13px; white-space: normal; }
 .chat-markdown th, .chat-markdown td { border: 1px solid var(--gris-24); padding: 8px 12px; text-align: left; }
 .chat-markdown blockquote { margin-left: 0; padding-left: 16px; border-left: 1px solid var(--grafito-12); color: var(--color-gris); }
+.chat-markdown .katex-display { max-width: 100%; margin: 18px 0; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 8px; text-align: center; }
+.chat-markdown .katex-display > .katex { font-size: 1.05em; }
+.chat-markdown .katex { max-width: 100%; }
 .chat-classification { justify-self: start; width: 100%; color: var(--color-gris); font-size: 13px; }
 .chat-classification summary { cursor: pointer; width: fit-content; color: var(--color-azul); text-decoration: underline; text-underline-offset: 3px; }
 .chat-classification-details { margin-top: 12px; padding: 12px 16px; border: 1px solid var(--grafito-12); background: var(--color-blanco); color: var(--color-grafito); line-height: 1.55; }

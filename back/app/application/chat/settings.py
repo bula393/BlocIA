@@ -31,6 +31,7 @@ class ChatSettings(BaseModel):
     max_input_characters: int = Field(ge=10, le=12000)
     cpu_threads: int = Field(ge=1, le=16)
     sensitive_patterns: list[str]
+    local_model_dtype: Literal["float32", "auto"] = "float32"
 
     @model_validator(mode="after")
     def patterns(self):

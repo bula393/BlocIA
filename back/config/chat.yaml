@@ -1,5 +1,7 @@
 max_input_characters: 4000
 cpu_threads: 4
+# CPU: float32 avoids slow bfloat16 emulation on machines without native support.
+local_model_dtype: float32
 sensitive_patterns:
   - '\b(m[eé]dic\w*|medicaci[oó]n|medicamento\w*|dosis|pastilla\w*|tratamiento\w*|operar\w*|cirug[ií]a|s[ií]ntoma\w*|salud|embaraz\w*|antibi[oó]tic\w*)\b'
   - '\b(abogad\w*|legal\w*|denuncia\w*|demanda\w*|contrato\w*|juicio\w*|divorci\w*|herencia\w*)\b'

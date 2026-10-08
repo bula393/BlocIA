@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { completeGoogleRegistration, consumeGoogleSession } from '../api/auth';
-import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
+import { AuthLayout } from '../components/auth/AuthLayout';
 import { navigateTo } from '../app/navigation';
 
 type PendingRegistration = {
@@ -29,7 +29,7 @@ export function GoogleCallback() {
     consumeGoogleSession()
       .then((result) => {
         if ('accessToken' in result) {
-          navigateTo('/perfil', true);
+          navigateTo('/', true);
           return;
         }
         setPending(result);
@@ -43,27 +43,28 @@ export function GoogleCallback() {
     if (!pending) return;
     try {
       await completeGoogleRegistration(pending.registrationToken, age, profession);
-      navigateTo('/perfil', true);
+      navigateTo('/', true);
     } catch {
       setError('No se pudieron completar tus datos. Revisalos e intentá de nuevo.');
     }
   }
 
   return (
-    <ChasisBloqIA title="Acceso con Google" activePath="/login" contentClassName="auth-content">
+    <AuthLayout>
       <section className="auth-intro">
+        <p className="provider-eyebrow">ACCESO CON GOOGLE</p>
         <h1>{pending ? 'Completá tu perfil' : 'Conectando con Google'}</h1>
         {loading && <p className="bloq-reading">Estamos verificando tu cuenta.</p>}
-        {error && <><p className="bloq-error">{error}</p><a className="bloq-button" data-primary="true" href="/login">Volver al acceso</a></>}
+        {error && <><p className="bloq-error" role="alert">{error}</p><a className="bloq-button" data-primary="true" href="/login">Volver al acceso</a></>}
       </section>
       {pending && !error && (
-        <form className="bloq-form" onSubmit={submit}>
+        <form className="bloq-form auth-form" onSubmit={submit}>
           <p className="bloq-status-line">Usaremos {String(pending.prefilledFields.mail ?? 'tu correo de Google')} para esta cuenta.</p>
           {pending.missingFields.includes('age') && <label>Edad<input type="number" min={1} value={age} onChange={(event) => setAge(Number(event.target.value))} required /></label>}
           {pending.missingFields.includes('profession') && <label>Profesión<input value={profession} onChange={(event) => setProfession(event.target.value)} required /></label>}
-          <div className="bloq-actions"><button type="submit" data-primary="true">Completar perfil</button></div>
+          <button type="submit" data-primary="true">Completar perfil</button>
         </form>
       )}
-    </ChasisBloqIA>
+    </AuthLayout>
   );
 }

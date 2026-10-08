@@ -1,23 +1,24 @@
 import logging
-import re
+from functools import lru_cache
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.application.chat.ai_responder import AIResponder, AIResponseUnavailableError
-from app.application.chat.context import build_model_context
+from app.application.chat.ai_responder import AIResponder
+from app.application.chat.default_provider_tokens import default_provider_token
 from app.application.chat.free_models import LOCAL_MODEL_ID, local_free_models
+from app.application.chat.google_defaults import default_google_key, default_google_models
+from app.application.chat.google_model_access import google_quota_models, UNVERIFIED_GOOGLE_QUOTA
 from app.application.chat.remote_defaults import default_openrouter_key, remote_free_models
 from app.application.chat.local_models import local_models, ModelUnavailableError
-from app.application.chat.privacy import redact_personal_data
 from app.application.chat.settings import settings
-from app.application.user.list_available_models import is_free_openrouter_model_id
-from app.domain.user.usage_event import UsageEvent
 from app.infrastructure.chat_repository import ChatRepository, ConversationNotFoundError, TurnConflictError
+from app.infrastructure.usage_analytics_repository import LIMIT_REASONS, UsageAnalyticsRepository
 from app.infrastructure.database import get_database
-from app.infrastructure.user.sqlite_repositories import UsageRepository
 from app.presentation.user.dependencies import current_user_mail, provider_repo, token_repo, user_repo
+
+from app.application.chat.send_message import send_chat_message, UsageBlockedError
+from app.presentation.chat_schemas import SendMessage
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 logger = logging.getLogger(__name__)
@@ -33,42 +34,37 @@ def chat_user(mail=Depends(current_user_mail), users=Depends(user_repo)):
     return mail
 
 
+@lru_cache(maxsize=1)
 def ai_responder():
     return AIResponder()
-
-
-class SendMessage(BaseModel):
-    prompt: str = Field(min_length=1, max_length=12000)
-    requestId: UUID
-    providerId: str | None = None
-    modelId: str | None = None
-
-    @model_validator(mode="after")
-    def model_selection(self):
-        if bool(self.providerId) != bool(self.modelId):
-            raise ValueError("Elegí un proveedor y un modelo para generar respuestas.")
-        if self.modelId and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}", self.modelId):
-            raise ValueError("El identificador del modelo no es válido.")
-        if self.providerId == "openrouter" and self.modelId and not is_free_openrouter_model_id(self.modelId):
-            raise ValueError("Elegí una ruta gratuita de OpenRouter.")
-        return self
-
-    @field_validator("prompt")
-    @classmethod
-    def trim_prompt(cls, value):
-        if not value.strip():
-            raise ValueError("Escribí una consulta antes de enviarla.")
-        return value.strip()
 
 
 def not_found(error):
     return HTTPException(404, detail={"message": str(error)})
 
 
+def lock_message(usage_lock):
+    reasons = [LIMIT_REASONS[reason] for reason in usage_lock["reasonCodes"] if reason in LIMIT_REASONS]
+    minutes = usage_lock.get("lockDurationMinutes", 1440)
+    if minutes % 60 == 0:
+        hours = minutes // 60
+        duration = f"{hours} {'hora' if hours == 1 else 'horas'}"
+    else:
+        duration = f"{minutes} {'minuto' if minutes == 1 else 'minutos'}"
+    return " ".join([*reasons, f"La IA está bloqueada durante {duration}."])
+
+
 @router.get("/status")
-def status(mail=Depends(chat_user), models=Depends(local_models)):
+def status(mail=Depends(chat_user), models=Depends(local_models), repository=Depends(chat_repository)):
     result = models.status()
-    return {**result, "freeModels": remote_free_models() + result.get("freeModels", [])}
+    # A global key uses its live catalog. Do not advertise the legacy fixed
+    # Google model, whose access was verified against a different credential.
+    google_models = [] if default_provider_token("google") else default_google_models()
+    if google_models:
+        allowed = google_quota_models(default_google_key())
+        google_models = [model for model in google_models if model.get("modelId") in allowed]
+    usage_lock = UsageAnalyticsRepository(repository.database).current_lock(mail)
+    return {**result, "freeModels": google_models + remote_free_models() + result.get("freeModels", []), "usageLock": usage_lock}
 
 
 @router.get("/conversations")
@@ -89,6 +85,17 @@ def read_conversation(identifier: UUID, mail=Depends(chat_user), repository=Depe
         raise not_found(error)
 
 
+@router.get("/conversations/{identifier}/messages/{request_id}/progress")
+def message_progress(identifier: UUID, request_id: UUID, mail=Depends(chat_user), repository=Depends(chat_repository)):
+    try:
+        progress = repository.progress(mail, str(identifier), str(request_id))
+        if progress is None:
+            raise HTTPException(404, detail={"message": "No se encontró el envío."})
+        return progress
+    except ConversationNotFoundError as error:
+        raise not_found(error)
+
+
 @router.delete("/conversations/{identifier}", status_code=204)
 def delete_conversation(identifier: UUID, mail=Depends(chat_user), repository=Depends(chat_repository)):
     try:
@@ -99,8 +106,20 @@ def delete_conversation(identifier: UUID, mail=Depends(chat_user), repository=De
 
 
 @router.post("/conversations/{identifier}/messages")
-def send_message(identifier: UUID, payload: SendMessage, mail=Depends(chat_user), repository=Depends(chat_repository), models=Depends(local_models), providers=Depends(provider_repo), tokens=Depends(token_repo), users=Depends(user_repo), responder=Depends(ai_responder)):
+def send_message(identifier: UUID, payload: SendMessage, response: Response, mail=Depends(chat_user), repository=Depends(chat_repository), models=Depends(local_models), providers=Depends(provider_repo), tokens=Depends(token_repo), users=Depends(user_repo), responder=Depends(ai_responder)):
     identifier, request_id = str(identifier), str(payload.requestId)
+    usage_analytics = UsageAnalyticsRepository(repository.database)
+    try:
+        completed = repository.is_completed(mail, identifier, request_id, payload.prompt)
+    except ConversationNotFoundError as error:
+        raise not_found(error)
+    except TurnConflictError as error:
+        raise HTTPException(409, detail={"message": str(error)})
+    usage_lock = usage_analytics.current_lock(mail)
+    if completed:
+        return {"conversation": repository.get(mail, identifier), "messages": repository.messages(mail, identifier), "usageLock": usage_lock}
+    if usage_lock["blocked"]:
+        raise HTTPException(423, detail={"message": lock_message(usage_lock), "usageLock": usage_lock})
     _, config = settings()
     if len(payload.prompt) > config.max_input_characters:
         raise HTTPException(422, detail={"message": f"La consulta admite hasta {config.max_input_characters} caracteres."})
@@ -114,33 +133,27 @@ def send_message(identifier: UUID, payload: SendMessage, mail=Depends(chat_user)
             if payload.providerId not in responder.supported_providers or provider is None or provider.status.value != "available":
                 raise HTTPException(422, detail={"message": "El proveedor elegido no está disponible."})
             api_key = tokens.get_secret(mail, payload.providerId)
-            if not api_key and payload.providerId == "openrouter":
+            if not api_key:
+                api_key = default_provider_token(payload.providerId)
+            if not api_key and payload.providerId == "google":
+                api_key = default_google_key()
+            elif not api_key and payload.providerId == "openrouter":
                 api_key = default_openrouter_key()
-    reserved = False
+            if payload.providerId == "google" and api_key:
+                allowed = google_quota_models(api_key)
+                if payload.modelId not in allowed:
+                    message = UNVERIFIED_GOOGLE_QUOTA if not allowed else "Este modelo no tiene cuota de texto habilitada en el proyecto de tu clave Google. Actualizá el selector y elegí uno de los modelos habilitados."
+                    raise HTTPException(422, detail={"message": message})
     try:
-        reserved = repository.reserve(mail, identifier, request_id, payload.prompt)
-        if reserved:
-            classification = models.classify(payload.prompt)
-            prompt = redact_personal_data(payload.prompt)
-            answer = "Esta consulta fue clasificada como una decisión personal. Revisá su clasificación antes de avanzar."
-            response_provider = None
-            response_model = None
-            if classification["label"] in {"no_personal", "personal_informativa"}:
-                if not payload.providerId:
-                    answer = "No hay un modelo de respuesta seleccionado. Elegí uno en el selector y volvé a enviar la consulta."
-                elif payload.providerId != "local" and not api_key:
-                    answer = "El proveedor elegido no tiene un token conectado. Conectalo desde tu perfil técnico y volvé a enviar la consulta."
-                else:
-                    try:
-                        model_prompt = build_model_context(users.get(mail), payload.prompt, repository.messages(mail, identifier))
-                        answer = responder.generate(payload.providerId, payload.modelId, model_prompt, api_key)
-                        response_provider, response_model = payload.providerId, payload.modelId
-                    except AIResponseUnavailableError as error:
-                        answer = str(error)
-            with repository.database.transaction():
-                repository.complete(mail, identifier, request_id, prompt, answer, classification, response_provider, response_model)
-                UsageRepository(repository.database).record(UsageEvent(mail, "chat_message_sent", response_provider))
-        return {"conversation": repository.get(mail, identifier), "messages": repository.messages(mail, identifier)}
+        result = send_chat_message(mail, identifier, request_id, payload, repository=repository, models=models,
+                                   users=users, responder=responder, usage_analytics=usage_analytics, api_key=api_key)
+        if result.get("confirmationRequired"):
+            response.status_code = 202
+        return result
+    except UsageBlockedError as error:
+        raise HTTPException(423, detail={"message": lock_message(error.usage_lock), "usageLock": error.usage_lock})
+    except HTTPException:
+        raise
     except ConversationNotFoundError as error:
         raise not_found(error)
     except TurnConflictError as error:
@@ -153,6 +166,3 @@ def send_message(identifier: UUID, payload: SendMessage, mail=Depends(chat_user)
         # Never log prompt text, personal identifiers, or model inputs.
         logger.error("Local chat failed: %s", type(error).__name__)
         raise HTTPException(503, detail={"message": "No se pudo clasificar la consulta. Podés reintentar el envío."}) from error
-    finally:
-        if reserved:
-            repository.fail(identifier, request_id)

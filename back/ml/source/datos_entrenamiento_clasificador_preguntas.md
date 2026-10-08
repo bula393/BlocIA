@@ -1,8 +1,10 @@
-# Datos de entrenamiento: clasificador de preguntas
+# Datos de entrenamiento: clasificador de consultas
 
 ## Objetivo
 
 Clasificar cada consulta según si la persona está pidiendo información o si espera que la IA intervenga en una decisión personal.
+
+La etiqueta se determina por la intención y el contenido, no por la puntuación ni por la forma gramatical. Una consulta puede ser una pregunta, una orden, una frase o una descripción con una petición implícita.
 
 ## Etiquetas
 

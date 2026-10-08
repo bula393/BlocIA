@@ -79,7 +79,8 @@ def test_local_model_receives_the_same_instruction(monkeypatch, tmp_path):
 
         def apply_chat_template(self, messages, **kwargs):
             received.extend(messages)
-            return FakeTokens()
+            assert kwargs["return_dict"] is True
+            return {"input_ids": FakeTokens(), "attention_mask": FakeTokens()}
 
         def decode(self, tokens, **kwargs):
             return "Explicación detallada"
@@ -92,12 +93,13 @@ def test_local_model_receives_the_same_instruction(monkeypatch, tmp_path):
         def eval(self):
             pass
 
-        def generate(self, tokens, **kwargs):
+        def generate(self, input_ids, attention_mask, **kwargs):
             assert kwargs["max_new_tokens"] >= 1024
+            assert kwargs["use_cache"] is True
             return [FakeTokens()]
 
     monkeypatch.setattr(ai_responder, "LOCAL_MODEL_PATH", tmp_path)
-    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(set_num_threads=lambda count: None, inference_mode=nullcontext))
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(float32="float32", set_num_threads=lambda count: None, inference_mode=nullcontext))
     monkeypatch.setitem(sys.modules, "transformers", SimpleNamespace(AutoModelForCausalLM=FakeModel, AutoTokenizer=FakeTokenizer))
 
     assert LocalTextModel().generate("Consulta actual:\nResolvé este ejercicio") == "Explicación detallada"

@@ -1,7 +1,10 @@
 import { FormEvent, useState } from 'react';
 import { ProfessionField } from '../components/auth/ProfessionField';
-import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
+import { AuthLayout } from '../components/auth/AuthLayout';
+import { Icon } from '../mockup/brand';
 import { useRegister } from '../features/usuario/useRegister';
+import { startGoogleLogin } from '../api/auth';
+import { authErrorMessage } from '../components/auth/authErrorMessage';
 
 function strongPasswordHint(password: string) {
   const valid = password.length >= 10 && /[A-Za-z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
@@ -20,25 +23,26 @@ export function Register() {
     register.mutate({ mail, password, age, profession });
   }
 
-  return (
-    <ChasisBloqIA title="Registro" activePath="/login" contentClassName="auth-content">
-      <section className="auth-intro">
-        <h1>Crear cuenta</h1>
-        <p className="bloq-reading">Completá estos datos para definir tu espacio de estudio o trabajo.</p>
-      </section>
-      <form className="bloq-form" onSubmit={submit}>
-        <label>Correo electrónico<input type="email" value={mail} onChange={(event) => setMail(event.target.value)} required /></label>
-        <label>Contraseña<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
-        <small>{strongPasswordHint(password)}</small>
+  return <AuthLayout>
+    <section className="auth-intro">
+      <p className="provider-eyebrow">EMPEZÁ POR UNA PREGUNTA</p>
+      <h1>Crear cuenta</h1>
+      <p>Un perfil breve ayuda a dar contexto a tus conversaciones.</p>
+    </section>
+    <button className="auth-google-button" type="button" onClick={startGoogleLogin}><span className="auth-google-mark" aria-hidden="true">G</span>Registrarme con Google<Icon name="arrow-up-right" size={16} /></button>
+    <div className="auth-divider"><span>o con tu correo</span></div>
+    <form className="bloq-form auth-form" onSubmit={submit}>
+      <label>Correo electrónico<input autoComplete="email" type="email" value={mail} onChange={(event) => setMail(event.target.value)} required /></label>
+      <label>Contraseña<input autoComplete="new-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+      <small className="auth-password-hint" data-valid={password.length >= 10 && /[A-Za-z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password)}>{strongPasswordHint(password)}</small>
+      <div className="auth-field-pair">
         <label>Edad<input type="number" min={1} value={age} onChange={(event) => setAge(Number(event.target.value))} required /></label>
         <ProfessionField value={profession} onChange={setProfession} required />
-        <div className="bloq-actions">
-          <button type="submit" data-primary="true">Crear cuenta</button>
-        </div>
-      </form>
-      {register.isError && <p className="bloq-error">No se pudo crear la cuenta. Revisá correo, contraseña, edad y profesión.</p>}
-      {register.data && <p className="bloq-success">Cuenta creada para {register.data.user.mail}</p>}
-      <p className="auth-secondary"><span>¿Ya tenés cuenta?</span><a href="/login">Iniciar sesión</a></p>
-    </ChasisBloqIA>
-  );
+      </div>
+      <button type="submit" data-primary="true" disabled={register.isPending}>{register.isPending ? 'Creando cuenta…' : 'Crear cuenta'}<Icon name="arrow" size={17} /></button>
+    </form>
+    {register.isError && <p className="bloq-error auth-feedback" role="alert">{authErrorMessage(register.error, 'register')}</p>}
+    {register.data && <p className="bloq-success auth-feedback" role="status">Cuenta creada para {register.data.user.mail}</p>}
+    <p className="auth-secondary"><span>¿Ya tenés cuenta?</span><a href="/login">Iniciar sesión</a></p>
+  </AuthLayout>;
 }

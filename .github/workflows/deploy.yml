@@ -1,0 +1,188 @@
+name: Deploy to Dokploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  eligible:
+    name: Select the verified release
+    if: >-
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref == format('refs/heads/{0}', vars.DEPLOY_BRANCH || 'main')) ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == (vars.DEPLOY_BRANCH || 'main') &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+      image-prefix: ${{ steps.release.outputs.image-prefix }}
+      current: ${{ steps.release.outputs.current }}
+    steps:
+      - name: Resolve immutable commit and registry prefix
+        id: release
+        env:
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          REPOSITORY_NAME: ${{ github.repository }}
+          REQUESTED_IMAGE_PREFIX: ${{ vars.GHCR_IMAGE_PREFIX }}
+          DEPLOYMENT_BRANCH: ${{ vars.DEPLOY_BRANCH || 'main' }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          image_prefix="${REQUESTED_IMAGE_PREFIX:-ghcr.io/$REPOSITORY_NAME}"
+          image_prefix="${image_prefix,,}"
+          [[ "$image_prefix" =~ ^ghcr\.io/[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$ ]]
+          printf 'sha=%s\nimage-prefix=%s\n' "$COMMIT_SHA" "$image_prefix" >> "$GITHUB_OUTPUT"
+          encoded_branch="$(printf '%s' "$DEPLOYMENT_BRANCH" | jq -sRr @uri)"
+          latest_sha="$(gh api --method GET "repos/$REPOSITORY_NAME/commits/$encoded_branch" --jq .sha)"
+          if [[ "$latest_sha" == "$COMMIT_SHA" ]]; then
+            printf 'current=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'current=false\n' >> "$GITHUB_OUTPUT"
+            printf 'Skipping an older verified commit because the deployment branch has advanced.\n'
+          fi
+
+  verify-manual:
+    name: Verify manually requested release
+    needs: eligible
+    if: github.event_name == 'workflow_dispatch' && needs.eligible.outputs.current == 'true'
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  publish:
+    name: Publish ${{ matrix.service }}
+    needs: [eligible, verify-manual]
+    if: >-
+      always() && !cancelled() &&
+      needs.eligible.result == 'success' &&
+      needs.eligible.outputs.current == 'true' &&
+      (
+        (github.event_name == 'workflow_run' && needs.verify-manual.result == 'skipped') ||
+        (github.event_name == 'workflow_dispatch' && needs.verify-manual.result == 'success')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: frontend
+            context: ./front
+            dockerfile: ./front/Dockerfile
+            target: ''
+          - service: api
+            context: ./back
+            dockerfile: ./back/Dockerfile
+            target: api
+          - service: inference
+            context: ./back
+            dockerfile: ./back/Dockerfile
+            target: inference
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.eligible.outputs.sha }}
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - name: Enable ARM64 emulation when requested
+        if: contains(vars.IMAGE_PLATFORMS, 'arm64')
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish the verified commit
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          platforms: ${{ vars.IMAGE_PLATFORMS || 'linux/amd64' }}
+          push: true
+          tags: ${{ needs.eligible.outputs.image-prefix }}-${{ matrix.service }}:${{ needs.eligible.outputs.sha }}
+          build-args: RELEASE_TAG=${{ needs.eligible.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.eligible.outputs.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  deploy:
+    name: Deploy inference, API and frontend
+    if: vars.DEPLOY_ENABLED == 'true'
+    needs: [eligible, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.eligible.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Verify the branch still points to this release
+        id: branch
+        env:
+          COMMIT_SHA: ${{ needs.eligible.outputs.sha }}
+          REPOSITORY_NAME: ${{ github.repository }}
+          DEPLOYMENT_BRANCH: ${{ vars.DEPLOY_BRANCH || 'main' }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          encoded_branch="$(printf '%s' "$DEPLOYMENT_BRANCH" | jq -sRr @uri)"
+          latest_sha="$(gh api --method GET "repos/$REPOSITORY_NAME/commits/$encoded_branch" --jq .sha)"
+          if [[ "$latest_sha" == "$COMMIT_SHA" ]]; then
+            printf 'current=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'current=false\n' >> "$GITHUB_OUTPUT"
+            printf 'Skipping deployment because the deployment branch advanced during verification or the image builds.\n'
+          fi
+      - name: Deploy the three Dokploy services and verify the released version
+        if: steps.branch.outputs.current == 'true'
+        run: python scripts/deploy_dokploy.py
+        env:
+          DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
+          DOKPLOY_INFERENCE_COMPOSE_ID: ${{ vars.DOKPLOY_INFERENCE_COMPOSE_ID }}
+          DOKPLOY_API_COMPOSE_ID: ${{ vars.DOKPLOY_API_COMPOSE_ID }}
+          DOKPLOY_FRONTEND_COMPOSE_ID: ${{ vars.DOKPLOY_FRONTEND_COMPOSE_ID }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          RELEASE_TAG: ${{ needs.eligible.outputs.sha }}
+          GHCR_IMAGE_PREFIX: ${{ needs.eligible.outputs.image-prefix }}
+          PUBLIC_HEALTH_URL: ${{ vars.PUBLIC_HEALTH_URL }}
+          FRONTEND_VERSION_URL: ${{ vars.FRONTEND_VERSION_URL }}
+      - name: Upload deployment verification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: deployment-report-${{ needs.eligible.outputs.sha }}
+          path: deployment-report.json
+          if-no-files-found: ignore
+          retention-days: 30
