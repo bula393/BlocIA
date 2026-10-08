@@ -119,15 +119,15 @@ def validate_workflows() -> None:
     require(set(deployment.get("needs", [])) == {"eligible", "publish"}, "production deployment must wait for all three images")
     require(deployment.get("if") == "vars.DEPLOY_ENABLED == 'true'", "Dokploy deployment must remain disabled until explicitly configured")
     require(deployment.get("environment", {}).get("name") == "production", "production deployment must use its GitHub environment")
-    require(int(deployment.get("timeout-minutes", "0")) >= 50, "sequential service deployment needs at least 50 minutes")
+    require(int(deployment.get("timeout-minutes", "0")) >= 10, "Dokploy deployment requests need enough time for the API calls")
     steps = deployment.get("steps", [])
-    invocation = next((step for step in steps if step.get("run") == "python scripts/deploy_dokploy.py"), {})
+    invocation = next((step for step in steps if step.get("run") == "python scripts/deploy_dokploy_applications.py"), {})
     require(invocation.get("if") == "steps.branch.outputs.current == 'true'", "production deployment must recheck the branch after the image builds")
     branch_check = next((step for step in steps if step.get("id") == "branch"), {})
     require("gh api --method GET" in branch_check.get("run", "") and '"$latest_sha" == "$COMMIT_SHA"' in branch_check.get("run", ""), "deployment must compare the current branch head against the verified release")
-    required_env = {"DOKPLOY_URL", "DOKPLOY_INFERENCE_COMPOSE_ID", "DOKPLOY_API_COMPOSE_ID", "DOKPLOY_FRONTEND_COMPOSE_ID", "DOKPLOY_API_KEY", "RELEASE_TAG", "GHCR_IMAGE_PREFIX", "PUBLIC_HEALTH_URL", "FRONTEND_VERSION_URL"}
+    required_env = {"DOKPLOY_URL", "DOKPLOY_CLASIFICADOR_APPLICATION_ID", "DOKPLOY_BACK_APPLICATION_ID", "DOKPLOY_FRONT_APPLICATION_ID", "DOKPLOY_API_KEY", "RELEASE_TAG", "GHCR_IMAGE_PREFIX"}
     require(required_env <= invocation.get("env", {}).keys(), "Dokploy deployment is missing required configuration")
-    require("DOKPLOY_COMPOSE_ID" not in invocation.get("env", {}), "default deployment must use three separate Compose resources")
+    require("DOKPLOY_COMPOSE_ID" not in invocation.get("env", {}), "default deployment must target the three Dokploy Applications")
     ci_container_steps = ci.get("jobs", {}).get("containers", {}).get("steps", [])
     compose_checks = "\n".join(step.get("run", "") for step in ci_container_steps)
     for service in ("inference", "api", "frontend"):

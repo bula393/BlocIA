@@ -130,11 +130,11 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   deploy:
-    name: Deploy inference, API and frontend
+    name: Request Dokploy Application deployments
     if: vars.DEPLOY_ENABLED == 'true'
     needs: [eligible, publish]
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
     environment:
       name: production
     permissions:
@@ -165,19 +165,19 @@ jobs:
             printf 'current=false\n' >> "$GITHUB_OUTPUT"
             printf 'Skipping deployment because the deployment branch advanced during verification or the image builds.\n'
           fi
-      - name: Deploy the three Dokploy services and verify the released version
+      - name: Update the three Docker images and request deployments
         if: steps.branch.outputs.current == 'true'
-        run: python scripts/deploy_dokploy.py
+        run: python scripts/deploy_dokploy_applications.py
         env:
           DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
-          DOKPLOY_INFERENCE_COMPOSE_ID: ${{ vars.DOKPLOY_INFERENCE_COMPOSE_ID }}
-          DOKPLOY_API_COMPOSE_ID: ${{ vars.DOKPLOY_API_COMPOSE_ID }}
-          DOKPLOY_FRONTEND_COMPOSE_ID: ${{ vars.DOKPLOY_FRONTEND_COMPOSE_ID }}
+          DOKPLOY_CLASIFICADOR_APPLICATION_ID: ${{ vars.DOKPLOY_CLASIFICADOR_APPLICATION_ID }}
+          DOKPLOY_BACK_APPLICATION_ID: ${{ vars.DOKPLOY_BACK_APPLICATION_ID }}
+          DOKPLOY_FRONT_APPLICATION_ID: ${{ vars.DOKPLOY_FRONT_APPLICATION_ID }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          GHCR_USERNAME: ${{ vars.GHCR_USERNAME }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
           RELEASE_TAG: ${{ needs.eligible.outputs.sha }}
           GHCR_IMAGE_PREFIX: ${{ needs.eligible.outputs.image-prefix }}
-          PUBLIC_HEALTH_URL: ${{ vars.PUBLIC_HEALTH_URL }}
-          FRONTEND_VERSION_URL: ${{ vars.FRONTEND_VERSION_URL }}
       - name: Upload deployment verification report
         if: always()
         uses: actions/upload-artifact@v7

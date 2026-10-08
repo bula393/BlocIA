@@ -1,14 +1,14 @@
 # Subir BlocIA a Dokploy
 
-Creá **tres servicios diferentes en Dokploy**, dentro del mismo proyecto y servidor: `blocia-inference`, `blocia-api` y `blocia-frontend`. Cada recurso es de tipo **Docker Compose**, origen **Raw**, y contiene solamente su propio contenedor. Podés reiniciar, actualizar y consultar registros de cada recurso por separado.
+En el proyecto `BloqIa` se usan tres servicios **Application** independientes con proveedor **Docker**: `back`, `front` y `clasificador`. GitHub Actions publica las imágenes y, cuando se habilita `DEPLOY_ENABLED`, actualiza el tag y solicita el despliegue de cada Application mediante la API de Dokploy. Los archivos de `deploy/*/compose.yaml` quedan como alternativa para quien prefiera administrar recursos Docker Compose.
 
 | Servicio | Función | Puerto del contenedor | Datos persistentes |
 | --- | --- | --- | --- |
-| frontend | Interfaz y acceso a la API desde el mismo dominio | 8080 | Ninguno |
-| api | Usuarios, conversaciones, consentimiento y límites | 8000, privado | `api-data`, montado en `/app/data` |
-| inference | Clasificación y, opcionalmente, Qwen local | 8001, privado | `inference-models`, montado en `/app/models` |
+| `back` | `ghcr.io/bula393/blocia-api:<SHA>` | 8000, privado | Volumen en `/app/data` |
+| `front` | `ghcr.io/bula393/blocia-frontend:<SHA>` | 8080, público | Ninguno |
+| `clasificador` | `ghcr.io/bula393/blocia-inference:<SHA>` | 8001, privado | Volumen en `/app/models` |
 
-El navegador usa `https://TU_DOMINIO/api/...`. Nginx deriva esas solicitudes a `blocia-prod-api:8000`; la API usa `http://blocia-prod-inference:8001` y un secreto compartido. Solamente `frontend` lleva un dominio público. SQLite queda en el volumen de la API, con una sola instancia del servicio.
+Configurá únicamente un dominio público para `front`. La API y el clasificador permanecen privados. Al completar los servicios, asegurate de mantener un volumen persistente para los datos del backend y otro para los modelos del clasificador; los tags de imagen son inmutables y cambian en cada push aprobado.
 
 El código está organizado en `front/src/features/chat/` para el chat y sus componentes; `back/app/bootstrap.py` para montar la API; `back/app/application/` para casos de uso; `back/app/presentation/` para contratos HTTP; `back/app/infrastructure/` para persistencia y transportes; y `back/app/inference_main.py` para la IA independiente.
 
@@ -20,135 +20,104 @@ Los límites iniciales son 6 GB para inferencia, 512 MB para la API y 128 MB par
 
 Por defecto, `BLOCIA_ENABLE_LOCAL_CHAT=0` instala solamente el clasificador. Para generar respuestas, conectá un proveedor desde Perfil técnico, configurá una credencial del servidor, o cambiá esa variable a `1` para instalar Qwen3-0.6B. La primera instalación descarga pesos en el volumen; puede tardar varios minutos. Los despliegues siguientes reutilizan esos archivos.
 
-## 2. Crear la red y los tres recursos independientes
+## 2. Crear las tres Applications en Dokploy
 
-1. En Dokploy, creá el proyecto `BlocIA` y su entorno de producción. Seleccioná el mismo servidor para los tres recursos.
-2. En la terminal del servidor, creá una red compartida una sola vez: `docker network create blocia-production`. Si ya existe, conservála. También podés ejecutar `sh scripts/create_deployment_network.sh blocia-production` desde una copia de este repositorio en ese servidor; el script verifica o crea la red sin reemplazarla.
-3. Creá los siguientes **tres servicios Docker Compose**; seleccioná **Docker Compose**, origen **Raw**, en cada uno:
+En el proyecto y entorno de producción que ya abriste, creá tres recursos de tipo **Application**. Usá el mismo servidor y el proveedor **Docker** para cada uno. No elijas Docker Compose para este flujo.
 
-| Recurso de Dokploy | Archivo que pegás en Raw | Variables que copiás en Environment |
+En cada servicio, completá el proveedor Docker de esta manera:
+
+| Application | Docker Image inicial | Registry URL |
 | --- | --- | --- |
-| `blocia-inference` | [`deploy/inference/compose.yaml`](../deploy/inference/compose.yaml) | [`deploy/inference/.env.example`](../deploy/inference/.env.example) |
-| `blocia-api` | [`deploy/api/compose.yaml`](../deploy/api/compose.yaml) | [`deploy/api/.env.example`](../deploy/api/.env.example) |
-| `blocia-frontend` | [`deploy/frontend/compose.yaml`](../deploy/frontend/compose.yaml) | [`deploy/frontend/.env.example`](../deploy/frontend/.env.example) |
+| `back` | `ghcr.io/bula393/blocia-api:dcfc10e26f289471bd959f129b489cb1f6c75dae` | `ghcr.io` |
+| `front` | `ghcr.io/bula393/blocia-frontend:dcfc10e26f289471bd959f129b489cb1f6c75dae` | `ghcr.io` |
+| `clasificador` | `ghcr.io/bula393/blocia-inference:dcfc10e26f289471bd959f129b489cb1f6c75dae` | `ghcr.io` |
 
-4. Guardá cada configuración. Conservá sus marcadores `x-blocia-deployment` y `x-blocia-service`, y los nombres de volumen. No actives Isolated Deployments: estos archivos usan la red externa común.
-5. Dejá desactivado el Auto Deploy propio de Dokploy en los tres recursos; GitHub coordinará las pruebas y las actualizaciones.
+Ese SHA fue publicado por Actions y las imágenes son públicas. Podés dejar vacíos usuario y contraseña del registro; no uses `latest`, así cada versión queda identificada y se puede revertir. El workflow actualiza estas imágenes al SHA del push que haya pasado las pruebas. La aplicación `front` debe escuchar en el puerto de contenedor `8080`, `back` en `8000` y `clasificador` en `8001`.
 
-La red `blocia-production` conecta los tres recursos. Los alias `blocia-prod-api` y `blocia-prod-inference` permiten encontrarlos aunque cambie el nombre que Dokploy asigna a los contenedores. Sólo frontend se conecta además con `dokploy-network` para recibir tráfico del dominio. No hay dependencias de Compose entre archivos independientes; el workflow despliega en el orden IA → API → frontend.
+En `back`, agregá un volumen persistente montado en `/app/data`. En `clasificador`, agregá otro volumen persistente montado en `/app/models`; la descarga inicial del modelo puede demorar. No publiques los puertos `8000` ni `8001` hacia internet. Solo `front` requiere un dominio público.
 
-Dokploy admite recursos Compose y variables mediante referencias `${VARIABLE}` en cada archivo. Consultá la [guía oficial de Compose](https://docs.dokploy.com/docs/core/docker-compose).
+Las imágenes de GitHub se consultan desde [GHCR](https://github.com/bula393?tab=packages). Para las imágenes públicas no hace falta crear credenciales del registro en Dokploy. Si después hacés privados los paquetes, creá un token de GitHub con `read:packages` y configurá un Registry GHCR con ese usuario y token. Actions publica con su `GITHUB_TOKEN` automático. Referencias: [GHCR en Dokploy](https://docs.dokploy.com/docs/core/registry/ghcr) y [permisos del Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
-## 3. Completar variables en Dokploy
+## 3. Variables de cada Application
 
-En **Environment** de cada recurso, copiá solamente el ejemplo de su carpeta indicado arriba. Completá los valores según esta tabla. Los ejemplos contienen valores ficticios; los secretos reales quedan en Dokploy.
+En la pestaña **Environment** de cada Application, agregá las variables de runtime de esta tabla. Los archivos `.env.example` de `deploy/` son para la alternativa Compose; no copies sus variables de red, volúmenes, `GHCR_IMAGE_PREFIX` o `RELEASE_TAG` a estas Applications.
 
-| Variable | Valor que debés colocar |
-| --- | --- |
-| `GHCR_IMAGE_PREFIX` | `ghcr.io/bula393/blocia`, si seguís usando este repositorio. Usá el mismo valor en GitHub. |
-| `RELEASE_TAG` | SHA completo de 40 caracteres de un commit. Actions lo actualizará al desplegar. No agregues `sha-`. |
-| `BLOCIA_NETWORK_NAME` | `blocia-production` en los tres recursos; debe coincidir con la red creada en el servidor. |
-| `BLOCIA_SERVICE_NAMESPACE` | `blocia-prod` en los tres recursos. Usá otro prefijo si alojás otra instalación de BlocIA en ese servidor. |
-| `FRONTEND_URL` | `https://TU_DOMINIO`, sin rutas ni barra final. |
-| `ACCESS_TOKEN_SECRET` | Secreto aleatorio de al menos 32 caracteres. Conservá el mismo entre despliegues. |
-| `BLOCIA_INFERENCE_TOKEN` | Otro secreto aleatorio, diferente del anterior. Copiá exactamente el mismo valor en API e IA; frontend no lo necesita. |
-| `BLOCIA_LOCK_MINUTES` | Minutos de bloqueo, por defecto `1440`. |
-| `BLOCIA_ENABLE_LOCAL_CHAT` | `0` para clasificar y usar proveedores; `1` para habilitar respuestas con Qwen local. |
-| `GOOGLE_REDIRECT_URI` | Si usás acceso con Google: `https://TU_DOMINIO/api/auth/google/callback`. |
+| Application | Variable | Valor |
+| --- | --- | --- |
+| `back` | `FRONTEND_URL` | `https://TU_DOMINIO`, sin barra final |
+| `back` | `ACCESS_TOKEN_SECRET` | Secreto aleatorio de al menos 32 caracteres |
+| `back` | `BLOCIA_LOCK_MINUTES` | Minutos de bloqueo deseados; `1440` equivale a un día |
+| `back` | `BLOCIA_INFERENCE_URL` | `http://blocia-clasificador-nrn9qa:8001` |
+| `back` | `BLOCIA_INFERENCE_TOKEN` | Secreto aleatorio compartido con `clasificador` |
+| `front` | `BLOCIA_API_UPSTREAM` | `bloqia-back-b1bgga:8000` |
+| `clasificador` | `BLOCIA_INFERENCE_TOKEN` | El mismo valor configurado en `back` |
+| `clasificador` | `BLOCIA_ENABLE_LOCAL_CHAT` | `0` para solo clasificar; `1` habilita Qwen local y requiere más memoria |
 
-`GHCR_IMAGE_PREFIX`, `RELEASE_TAG`, `BLOCIA_NETWORK_NAME` y `BLOCIA_SERVICE_NAMESPACE` deben coincidir en los tres recursos. `FRONTEND_URL`, `ACCESS_TOKEN_SECRET`, proveedor de IA y variables de Google pertenecen a la API. `BLOCIA_ENABLE_LOCAL_CHAT` y los límites de memoria del modelo pertenecen a inferencia.
+Los nombres internos `blocia-clasificador-nrn9qa` y `bloqia-back-b1bgga` aparecen debajo del título de cada Application en Dokploy. Las dos Applications deben compartir la red interna de Dokploy para que puedan resolverse entre sí. Si Dokploy vuelve a generar esos nombres al recrear un servicio, actualizá las URLs correspondientes. No publiques los puertos `8000` ni `8001` al exterior.
 
-Podés generar cada secreto en tu equipo con `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Ejecutalo dos veces y colocá cada resultado en su campo correspondiente.
+Generá secretos distintos en tu equipo con `python -c "import secrets; print(secrets.token_urlsafe(48))"`. `BLOCIA_INFERENCE_TOKEN` debe tener el mismo valor en API e IA; `ACCESS_TOKEN_SECRET` debe ser diferente. Las credenciales de proveedores (`BLOCIA_DEFAULT_*_TOKEN`) son opcionales; también se pueden conectar credenciales por usuario desde la app. Google Login es opcional y requiere `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y registrar `https://TU_DOMINIO/api/auth/google/callback` como URL de retorno. `BLOCIA_ENCRYPTION_KEY` también es opcional: si se deja vacía, la API la conserva en `/app/data`. No cambies esa clave si ya hay credenciales guardadas.
 
-Las variables `BLOCIA_DEFAULT_*_TOKEN` son opcionales; también podés conectar credenciales por usuario desde la app. Google Login necesita `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`, además de registrar la URL de retorno exacta en Google. Registro y acceso con contraseña funcionan sin Google.
+Generá secretos distintos en tu equipo con `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Las variables `BLOCIA_DEFAULT_*_TOKEN` son opcionales; también se pueden conectar credenciales por usuario desde la app. Google Login es opcional y requiere `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y registrar la URL de retorno exacta. `BLOCIA_ENCRYPTION_KEY` también es opcional: si se deja vacía, la API la conserva en `/app/data`. No cambies esa clave si ya hay credenciales guardadas.
 
-`BLOCIA_ENCRYPTION_KEY` es una clave Fernet opcional. Si la dejás vacía, la API crea una clave dentro de `/app/data`; se conserva con el volumen. Si ya tenés datos, conservá la clave usada originalmente. Cambiarla impide leer los tokens guardados.
+## 4. Configurar el dominio público
 
-## 4. Conectar el dominio
+En la Application `front`, abrí **Domains → Add Domain** y completá el host público que tengas configurado en DNS. Apuntá un registro DNS `A` a la IP del servidor Dokploy. Configurá el puerto de contenedor `8080`, el path `/` y HTTPS con Let's Encrypt. No agregues dominios públicos a `back` ni `clasificador`. Revisá y guardá el dominio en Dokploy según su [documentación oficial de Applications](https://docs.dokploy.com/docs/core/applications).
 
-En **blocia-frontend**, abrí **Domains → Add Domain** y completá:
+## 5. Configurar GitHub Actions para desplegar las Applications
 
-| Campo | Valor |
-| --- | --- |
-| Service | `frontend` |
-| Host | `TU_DOMINIO`, sin `https://` |
-| Path | `/` |
-| Container Port | `8080` |
-| HTTPS | Activado, certificado Let's Encrypt |
-
-Guardá y revisá **Preview Compose**. `frontend` debe conservar la red de la aplicación y la conexión con Traefik. Esta configuración usa `dokploy-network`; dejá desactivada la opción Isolated Deployments para seguir este archivo tal cual. No agregues dominio ni puertos públicos a `api` o `inference`. Los dominios se aplican en el siguiente despliegue, según la [documentación oficial de Domains](https://docs.dokploy.com/docs/core/docker-compose/domains).
-
-## 5. Dar acceso a las imágenes de GitHub
-
-Después de un push a `main`, si `CI` termina correctamente, Actions publica estas imágenes con el SHA completo del commit. En Dokploy, la correspondencia es:
-
-```text
-back         → ghcr.io/bula393/blocia-api:SHA_COMPLETO
-front        → ghcr.io/bula393/blocia-frontend:SHA_COMPLETO
-clasificador → ghcr.io/bula393/blocia-inference:SHA_COMPLETO
-```
-
-En los tres campos **Registry URL** usá `ghcr.io`. `SHA_COMPLETO` se reemplaza por el SHA de 40 caracteres que aparece en la ejecución exitosa de GitHub Actions; cada servicio usa el sufijo de imagen indicado arriba. La publicación de imágenes no requiere `DEPLOY_ENABLED=true`; esa variable habilita el paso separado que actualiza y despliega los tres recursos Docker Compose.
-
-Para paquetes privados, creá un token clásico de GitHub con permiso `read:packages` y acceso a esos paquetes. En Dokploy, agregá un **Registry** para el servidor de despliegue: URL `ghcr.io`, usuario de GitHub y ese token como contraseña. Probá la conexión. Si una organización requiere SSO, autorizá el token para ella. Alternativamente, podés configurar los tres paquetes como públicos una vez creados.
-
-El token que permite a Dokploy descargar imágenes es diferente de `DOKPLOY_API_KEY`. Actions publica con su `GITHUB_TOKEN` automático. Referencias: [GHCR en Dokploy](https://docs.dokploy.com/docs/core/registry/ghcr) y [permisos del Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
-
-## 6. Completar GitHub Actions
-
-En el repositorio, abrí **Settings → Secrets and variables → Actions**. Creá estas **Repository variables**:
+En GitHub abrí **Settings → Secrets and variables → Actions → Variables** y creá estas Repository variables:
 
 | Variable | Valor |
 | --- | --- |
-| `DEPLOY_ENABLED` | `false` mientras configurás; `true` al terminar. Las pruebas funcionan aunque esté desactivado. |
-| `DEPLOY_BRANCH` | `main`, o tu rama de producción. |
-| `GHCR_IMAGE_PREFIX` | `ghcr.io/bula393/blocia`, igual que en Dokploy. Puede omitirse si coincide con el nombre del repositorio en minúsculas. |
-| `DOKPLOY_URL` | `https://TU_DOKPLOY`, sin `/api` ni otras rutas. |
-| `DOKPLOY_INFERENCE_COMPOSE_ID` | ID del recurso `blocia-inference`. |
-| `DOKPLOY_API_COMPOSE_ID` | ID del recurso `blocia-api`. |
-| `DOKPLOY_FRONTEND_COMPOSE_ID` | ID del recurso `blocia-frontend`. |
-| `PUBLIC_HEALTH_URL` | `https://TU_DOMINIO/api/ready` |
-| `FRONTEND_VERSION_URL` | `https://TU_DOMINIO/version.json` |
-| `IMAGE_PLATFORMS` | Opcional: `linux/amd64`. Para un servidor ARM, `linux/arm64`; esa arquitectura requiere verificar sus imágenes en tu servidor. |
+| `DEPLOY_ENABLED` | `false` durante la configuración; cambialo a `true` cuando los tres servicios estén listos. |
+| `DEPLOY_BRANCH` | `main` |
+| `GHCR_IMAGE_PREFIX` | `ghcr.io/bula393/blocia` |
+| `DOKPLOY_URL` | `https://policloud.ipm.edu.ar` |
+| `DOKPLOY_CLASIFICADOR_APPLICATION_ID` | `eVTqos01ugqO1i1s-YDxc` |
+| `DOKPLOY_BACK_APPLICATION_ID` | `CdbClN8o2saQvhFa2iOmK` |
+| `DOKPLOY_FRONT_APPLICATION_ID` | `o7wO6_qhR5KcKPT9FMYak` |
+| `IMAGE_PLATFORMS` | Opcional; por defecto `linux/amd64`. |
 
-Cada ID se ve en la URL al abrir su recurso. Deben ser tres IDs distintos; no uses el ID del proyecto. El workflow anterior con un único `DOKPLOY_COMPOSE_ID` queda reemplazado por estas tres variables.
+Los tres IDs son de las Applications `clasificador`, `back` y `front` de este proyecto; no uses el ID del proyecto ni los IDs de los recursos Compose anteriores.
 
-En Dokploy, generá una API key desde **Profile / API o CLI**. En GitHub creá el **Actions secret** `DOKPLOY_API_KEY` con ese valor. La clave se envía en `x-api-key`, conforme a la [API oficial de Dokploy](https://docs.dokploy.com/docs/api).
+En **Settings → Secrets and variables → Actions → Secrets**, agregá `DOKPLOY_API_KEY` con una API key que generes desde tu cuenta Dokploy. La clave se manda a la API del mismo Dokploy para actualizar el tag Docker y solicitar cada despliegue; nunca se imprime en los logs. GitHub usa un Environment llamado `production` para el secreto. Si lo creás, colocá allí el secreto y asegurate de que su nombre sea exactamente `production`; las variables de selección y configuración de arriba deben quedar disponibles como Repository variables.
 
-Creá un **Environment** de GitHub llamado `production`. Podés poner ahí el secreto `DOKPLOY_API_KEY` y las variables de Dokploy en lugar de hacerlo a nivel del repositorio. `DEPLOY_ENABLED`, `DEPLOY_BRANCH`, `GHCR_IMAGE_PREFIX` e `IMAGE_PLATFORMS` deben ser variables del repositorio, porque también se usan antes del job de producción. Para despliegue automático sin intervención, no agregues revisores obligatorios a ese entorno.
+Dejá vacías las credenciales GHCR: los tres paquetes son públicos. Si los hacés privados, agregá como Repository variable `GHCR_USERNAME` y como Actions secret `GHCR_READ_TOKEN` (token GitHub con permiso `read:packages`). `DOKPLOY_API_KEY` y el token de lectura de GHCR tienen propósitos distintos.
 
-Si usás una organización, permití que Actions publique paquetes y que el repositorio tenga acceso a los paquetes existentes. Las credenciales de proveedores de IA y de usuarios quedan en Dokploy, no se necesitan para las pruebas de GitHub.
+La API de Dokploy utilizada es [application.saveDockerProvider](https://docs.dokploy.com/docs/api/reference-application) para guardar la imagen y [application.deploy](https://docs.dokploy.com/docs/api/reference-application) para solicitar el despliegue.
 
-## 7. Primer despliegue y próximos pushes
+## 6. Qué pasa en cada push
 
-1. Subí estos archivos al repositorio con un commit y push.
-2. Confirmá que `CI` termina en verde en **Actions**; después se publican las tres imágenes con ese SHA.
-3. Para despliegue automático, completá primero los IDs de los recursos Docker Compose, el dominio, la red compartida y los secretos indicados arriba; recién entonces colocá `DEPLOY_ENABLED=true`.
-4. Ejecutá **Actions → Deploy to Dokploy → Run workflow**, eligiendo la rama configurada. La ejecución manual también corre las pruebas antes de publicar.
-5. El flujo comprueba antes de modificar nada que los tres IDs correspondan al recurso Compose correcto, usen el mismo servidor y red, y compartan el secreto entre API e IA.
-6. Actualiza `RELEASE_TAG` y `GHCR_IMAGE_PREFIX` en cada recurso conservando sus propias variables y volúmenes. Despliega IA → API → frontend y espera a que `/api/ready` y `/version.json` identifiquen el SHA esperado; también verifica el SHA de inferencia a través de la API. Abrí tu dominio y registrate para comprobar el funcionamiento.
+1. Un push a `main` inicia `CI`: pruebas del backend, frontend, navegador, validaciones de despliegue y construcción de contenedores.
+2. Solo si CI termina correctamente, GitHub publica las tres imágenes etiquetadas con el SHA completo de ese commit.
+3. Cuando `DEPLOY_ENABLED=true`, Actions verifica que el commit siga siendo la punta de `main`, actualiza las imágenes Docker de las Applications y solicita el despliegue en orden `clasificador` → `back` → `front`.
+4. Abrí **Deployments** y **Logs** de cada Application en Dokploy para seguir su estado. Un resultado exitoso de Actions confirma que Dokploy aceptó las solicitudes; revisá allí que los contenedores queden saludables y que el dominio responda.
 
-Después, cada push a la rama de producción pasa por `CI` antes de publicar y desplegar. Los pushes a otras ramas y los pull requests ejecutan las comprobaciones. Un commit que ya no sea la punta de la rama no reemplaza una versión más reciente.
+La primera vez, mantené `DEPLOY_ENABLED=false` hasta completar las variables, los volúmenes persistentes, el dominio y la API key. Luego habilitalo y podés ejecutar **Actions → Deploy to Dokploy → Run workflow** para probar manualmente. El workflow manual vuelve a ejecutar CI antes de publicar. Los pushes a otras ramas y los pull requests ejecutan las comprobaciones, pero no despliegan producción.
 
-`CI` ejecuta pruebas del backend, pruebas y construcción del frontend, el flujo de consentimiento y cupo en navegador, validación de Compose y construcción de contenedores. Conserva resultados JUnit, evidencias del navegador e informe de dependencias en **Artifacts**. Los fallos de pruebas o construcción detienen el flujo; la auditoría de dependencias es informativa. Estos informes ayudan a depurar, pero no modifican el código automáticamente.
+El workflow conserva el SHA completo de cada versión. Para hacer rollback, elegí el SHA anterior y volvé a colocar su imagen en la Application correspondiente desde Dokploy. Las migraciones de datos no se revierten automáticamente; conservá los volúmenes y respaldá `/app/data` antes de cambios de esquema.
+
+CI conserva resultados JUnit, evidencias del navegador e informe de dependencias en **Artifacts**. Los fallos de prueba o construcción detienen la publicación; el informe de dependencias es informativo y no modifica el código automáticamente.
+
+## Alternativa: Docker Compose
+
+Si preferís administrar contenedores mediante Compose en lugar de las tres Applications, el repositorio también contiene [`deploy/inference/compose.yaml`](../deploy/inference/compose.yaml), [`deploy/api/compose.yaml`](../deploy/api/compose.yaml) y [`deploy/frontend/compose.yaml`](../deploy/frontend/compose.yaml), además de [`deploy/dokploy.compose.yaml`](../deploy/dokploy.compose.yaml) como configuración conjunta. Esa alternativa requiere una red externa compartida y la automatización de Compose; no mezcles los IDs o los pasos de Compose con el workflow de Applications descrito arriba. Consultá la [guía oficial de Docker Compose en Dokploy](https://docs.dokploy.com/docs/core/docker-compose).
 
 ## Operación, datos y recuperación
 
 - Cada tarjeta de Dokploy tiene sus propios **Deployments**, **Logs** y controles de reinicio; abrí el recurso que quieras revisar. En GitHub, abrí la ejecución y descargá los informes cuando una comprobación falle.
 - `/healthz` confirma que responde Nginx. `/api/health` confirma la base de datos. `/api/ready` exige base e IA disponibles. `/version.json` identifica la imagen de la interfaz.
-- El primer arranque puede tardar por la descarga de modelos. El flujo espera hasta 30 minutos en total; sus registros muestran qué servicio está pendiente.
-- Conservá los tres recursos Compose, sus nombres de volumen y las claves entre despliegues. Configurá copias de seguridad de `api-data`; incluye SQLite y su clave de cifrado. Para una copia consistente de SQLite, pausá la API o usá la operación de backup de SQLite; no copies solamente el archivo principal mientras escribe en WAL.
-- Para volver a una versión anterior, establecé `RELEASE_TAG` con el mismo SHA previamente publicado en los tres recursos y desplegá IA, API y frontend en ese orden. Conservá los volúmenes. Un rollback de código no revierte migraciones de datos; guardá una copia antes de cambios de esquema.
-- La preparación de IA rechaza cambios de revisión que sobrescribirían pesos existentes. Para actualizar modelos, hacé una copia del volumen y ejecutá explícitamente `python -m ml.prepare --classifier-only --force-model-revision` dentro del contenedor de inferencia; omití `--classifier-only` si habilitaste Qwen. Reiniciá inferencia después. No se forza ese cambio en cada despliegue.
+- El primer arranque del clasificador puede tardar por la descarga de modelos; seguí su estado en **Deployments** y **Logs** de Dokploy.
+- Conservá los volúmenes y las claves entre despliegues. Respaldá `/app/data`, que contiene SQLite y la clave de cifrado. Para una copia consistente de SQLite, pausá la Application `back` o usá la operación de backup de SQLite; no copies solamente el archivo principal mientras escribe en WAL.
+- Para volver a una versión anterior, colocá en cada Application el tag completo del SHA anterior publicado y desplegá `clasificador`, `back` y `front` en ese orden. Conservá los volúmenes. Un rollback de código no revierte migraciones de datos; guardá una copia antes de cambios de esquema.
+- La preparación de IA rechaza cambios de revisión que sobrescribirían pesos existentes. Para actualizar modelos, hacé una copia del volumen y ejecutá explícitamente `python -m ml.prepare --classifier-only --force-model-revision` dentro del contenedor de `clasificador`; omití `--classifier-only` si habilitaste Qwen. Reiniciá esa Application después. No se forza ese cambio en cada despliegue.
 - Una API y SQLite son la configuración actual. Para escalar a varias instancias de API hace falta migrar la persistencia a una base compartida.
 
-## Si ya desplegaste la configuración conjunta
+## Si ya desplegaste la configuración conjunta con Compose
 
-Los tres recursos nuevos pueden reutilizar los datos existentes: configurá `BLOCIA_API_VOLUME_NAME` en API con el nombre real del volumen anterior y `BLOCIA_MODELS_VOLUME_NAME` en IA con el nombre real del volumen de modelos. Consultá esos nombres en los volúmenes del recurso anterior. Pausá la API anterior antes de iniciar la nueva sobre SQLite, y conservá su clave de cifrado. No borres los volúmenes al retirar el recurso anterior.
+Las instrucciones de este apartado aplican solo si migrás una instalación anterior desde Compose a Applications. Podés reutilizar los datos existentes configurando en cada Application los nombres reales de los volúmenes previos. Consultá esos nombres en Dokploy. Pausá la API anterior antes de iniciar la nueva sobre SQLite y conservá su clave de cifrado. No borres los volúmenes al retirar el recurso anterior.
 
-Los valores predeterminados crean `blocia-prod-api-data` y `blocia-prod-inference-models` en una instalación nueva. Si cambiás el namespace para otra instalación, los nombres predeterminados de volumen también usan ese prefijo; los campos `BLOCIA_*_VOLUME_NAME` permiten indicar un volumen existente.
-
-El antiguo [`deploy/dokploy.compose.yaml`](../deploy/dokploy.compose.yaml) permanece como alternativa conjunta manual; GitHub Actions usa ahora los tres archivos independientes.
+El antiguo [`deploy/dokploy.compose.yaml`](../deploy/dokploy.compose.yaml) permanece como alternativa conjunta manual; el workflow descrito arriba usa las tres Applications y la API de Dokploy.
 
 ## Probar los servicios en tu equipo
 
