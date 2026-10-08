@@ -4,9 +4,9 @@ Interfaz de chat en español con historial por usuario y la paleta original. Cla
 
 ## Despliegue por servicios
 
-El proyecto incluye tres recursos independientes de Dokploy para frontend, API e inferencia, conectados por una red privada. Cada uno tiene su configuración y sus controles de despliegue; GitHub Actions verifica cada push y actualiza los tres después de que pasen las pruebas.
+El proyecto usa tres **Applications** independientes de Dokploy con proveedor Docker: `front`, `back` y `clasificador`. GitHub Actions verifica los cambios, publica sus imágenes en GHCR y, cuando habilitás el despliegue, actualiza y despliega las tres Applications después de que pasen las pruebas.
 
-Seguí la [guía de Dokploy](docs/dokploy.md) para crear el proyecto, conectar el dominio y completar los valores manuales. Creá un servicio con [inferencia](deploy/inference/compose.yaml), otro con [API](deploy/api/compose.yaml) y otro con [frontend](deploy/frontend/compose.yaml). Cada carpeta incluye sus variables de ejemplo. Las automatizaciones están en [CI](.github/workflows/ci.yml) y [despliegue](.github/workflows/deploy.yml). El Compose local está en [compose.yaml](compose.yaml).
+Seguí la [guía paso a paso de Dokploy](docs/dokploy.md) para configurar las imágenes, el dominio, los volúmenes y las variables manuales. Las configuraciones [Docker Compose separadas](deploy/) permanecen como alternativa. Las automatizaciones están en [CI](.github/workflows/ci.yml) y [despliegue](.github/workflows/deploy.yml). El Compose local está en [compose.yaml](compose.yaml).
 
 ## Abrir el sistema
 

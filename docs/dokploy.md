@@ -28,11 +28,11 @@ En cada servicio, completá el proveedor Docker de esta manera:
 
 | Application | Docker Image inicial | Registry URL |
 | --- | --- | --- |
-| `back` | `ghcr.io/bula393/blocia-api:dcfc10e26f289471bd959f129b489cb1f6c75dae` | `ghcr.io` |
-| `front` | `ghcr.io/bula393/blocia-frontend:dcfc10e26f289471bd959f129b489cb1f6c75dae` | `ghcr.io` |
-| `clasificador` | `ghcr.io/bula393/blocia-inference:dcfc10e26f289471bd959f129b489cb1f6c75dae` | `ghcr.io` |
+| `back` | `ghcr.io/bula393/blocia-api:SHA_COMPLETO` | `ghcr.io` |
+| `front` | `ghcr.io/bula393/blocia-frontend:SHA_COMPLETO` | `ghcr.io` |
+| `clasificador` | `ghcr.io/bula393/blocia-inference:SHA_COMPLETO` | `ghcr.io` |
 
-Ese SHA fue publicado por Actions y las imágenes son públicas. Podés dejar vacíos usuario y contraseña del registro; no uses `latest`, así cada versión queda identificada y se puede revertir. El workflow actualiza estas imágenes al SHA del push que haya pasado las pruebas. La aplicación `front` debe escuchar en el puerto de contenedor `8080`, `back` en `8000` y `clasificador` en `8001`.
+Reemplazá `SHA_COMPLETO` por los 40 caracteres del commit que Actions publicó más recientemente; el resumen de la ejecución y la pestaña **Packages** muestran el tag exacto. Las imágenes son públicas, así que podés dejar vacíos usuario y contraseña del registro. No uses `latest`: cada versión queda identificada y se puede revertir. El workflow actualiza estas imágenes al SHA del push que haya pasado las pruebas. La aplicación `front` debe escuchar en el puerto de contenedor `8080`, `back` en `8000` y `clasificador` en `8001`.
 
 En `back`, agregá un volumen persistente montado en `/app/data`. En `clasificador`, agregá otro volumen persistente montado en `/app/models`; la descarga inicial del modelo puede demorar. No publiques los puertos `8000` ni `8001` hacia internet. Solo `front` requiere un dominio público.
 
