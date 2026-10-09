@@ -3,7 +3,7 @@ from app.domain.user.ai_model import AIModel
 from app.domain.user.enums import ModelAvailabilityStatus
 
 
-def test_technical_profile_provider_token_lifecycle(client, access_token):
+def test_technical_profile_provider_token_lifecycle(client, access_token, verified_email):
     headers = {"Authorization": f"Bearer {access_token}"}
     providers = client.get("/technical-profile/providers", headers=headers)
     assert providers.status_code == 200
@@ -29,7 +29,7 @@ def test_openai_models_without_token_returns_free_open_weight_options(client, ac
     assert {model["modelId"] for model in response.json()["models"]} == {"gpt-oss-20b", "gpt-oss-120b"}
 
 
-def test_usage_summary_uses_saved_events_and_tokens(client, access_token):
+def test_usage_summary_uses_saved_events_and_tokens(client, access_token, verified_email):
     headers = {"Authorization": f"Bearer {access_token}"}
     client.post("/technical-profile/tokens", headers=headers, json={"providerId": "anthropic", "token": "test-token"})
     client.get("/technical-profile/providers/openai/models", headers=headers)
@@ -63,7 +63,7 @@ def test_default_provider_token_is_available_without_exposing_its_value(client, 
     assert "server-only-test-token" not in models.text
 
 
-def test_google_catalog_only_offers_project_quota_models(client, access_token, monkeypatch, tmp_path):
+def test_google_catalog_only_offers_project_quota_models(client, access_token, monkeypatch, tmp_path, verified_email):
     import hashlib
     import json
     path = tmp_path / "quotas.json"

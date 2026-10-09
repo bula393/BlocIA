@@ -10,6 +10,17 @@ CREATE TABLE IF NOT EXISTS credentials (
     user_mail TEXT PRIMARY KEY REFERENCES users(mail) ON DELETE CASCADE,
     payload TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS email_verifications (
+    user_mail TEXT PRIMARY KEY REFERENCES users(mail) ON DELETE CASCADE,
+    verified_at DOUBLE PRECISION,
+    code_digest TEXT,
+    nonce TEXT,
+    expires_at DOUBLE PRECISION NOT NULL DEFAULT 0,
+    attempts_left INTEGER NOT NULL DEFAULT 0,
+    sent_at DOUBLE PRECISION NOT NULL DEFAULT 0,
+    window_started_at DOUBLE PRECISION NOT NULL DEFAULT 0,
+    send_count INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS external_links (
     provider TEXT NOT NULL,
     external_subject TEXT NOT NULL,

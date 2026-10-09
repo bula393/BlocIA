@@ -5,6 +5,8 @@ import hmac
 import json
 import os
 import secrets
+import time
+from functools import partial
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -24,14 +26,21 @@ from .serializers import user_profile
 router = APIRouter(tags=["Auth"])
 
 SESSION_COOKIE_NAME = "bloqia_session"
+GOOGLE_TRANSACTION_TTL_SECONDS = 600
+GOOGLE_RESULT_TTL_SECONDS = 120
 
 
 def frontend_url() -> str:
-    return os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    return os.getenv("FRONTEND_URL", "http://localhost:5173").strip().rstrip("/")
 
 
 def callback_url() -> str:
-    return os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
+    configured = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
+    if configured:
+        return configured
+    if os.getenv("ENVIRONMENT", "development").strip().lower() == "production":
+        return f"{frontend_url()}/api/auth/google/callback"
+    return "http://localhost:8000/auth/google/callback"
 
 
 def result_secret() -> bytes:
@@ -43,23 +52,39 @@ def result_secret() -> bytes:
     return b"development-only-google-session-secret"
 
 
-def encode_result(result: dict) -> str:
-    encoded = base64.urlsafe_b64encode(json.dumps(result, separators=(",", ":")).encode()).decode()
+def encode_google_payload(payload: dict, purpose: str, ttl_seconds: int) -> str:
+    envelope = {"purpose": purpose, "exp": int(time.time()) + ttl_seconds, "payload": payload}
+    encoded = base64.urlsafe_b64encode(json.dumps(envelope, separators=(",", ":")).encode()).decode()
     signature = hmac.new(result_secret(), encoded.encode(), hashlib.sha256).hexdigest()
     return f"{encoded}.{signature}"
 
 
-def decode_result(value: str | None) -> dict | None:
-    if not value:
+def decode_google_payload(value: str | None, purpose: str) -> dict | None:
+    if not value or len(value) > 16384:
         return None
     try:
         encoded, signature = value.rsplit(".", 1)
         expected = hmac.new(result_secret(), encoded.encode(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(signature, expected):
             return None
-        return json.loads(base64.urlsafe_b64decode(encoded.encode()).decode())
+        envelope = json.loads(base64.urlsafe_b64decode(encoded.encode()).decode())
+        if not isinstance(envelope, dict) or envelope.get("purpose") != purpose:
+            return None
+        expires_at = envelope.get("exp")
+        if type(expires_at) is not int or expires_at <= int(time.time()):
+            return None
+        payload = envelope.get("payload")
+        return payload if isinstance(payload, dict) else None
     except (ValueError, UnicodeDecodeError, json.JSONDecodeError, binascii.Error):
         return None
+
+
+def encode_result(result: dict) -> str:
+    return encode_google_payload(result, "google-result", GOOGLE_RESULT_TTL_SECONDS)
+
+
+def decode_result(value: str | None) -> dict | None:
+    return decode_google_payload(value, "google-result")
 
 
 def set_session_cookie(response: JSONResponse | RedirectResponse, token: str) -> None:
@@ -92,7 +117,19 @@ def authenticated_response(user: object, token: str, status_code: int = 200) -> 
     return response
 
 
-def google_identity(code: str) -> dict:
+def verify_google_id_token(id_token: str, client_id: str) -> dict:
+    # The official verifier checks Google's public-key signature, audience,
+    # issuer, issued-at time and expiration; tokeninfo is a debugging endpoint.
+    from google.auth.transport.requests import Request as GoogleAuthRequest
+    from google.oauth2.id_token import verify_oauth2_token
+
+    identity = verify_oauth2_token(id_token, partial(GoogleAuthRequest(), timeout=10), client_id)
+    if type(identity.get("exp")) is not int or identity["exp"] <= int(time.time()):
+        raise ValueError("Google identity token is expired")
+    return identity
+
+
+def google_identity(code: str, nonce: str) -> dict:
     data = urlencode({
         "code": code,
         "client_id": os.environ["GOOGLE_CLIENT_ID"],
@@ -106,12 +143,14 @@ def google_identity(code: str) -> dict:
     id_token = token.get("id_token")
     if not id_token:
         raise ValueError("Google did not return an identity token")
-    with urlopen(f"https://oauth2.googleapis.com/tokeninfo?{urlencode({'id_token': id_token})}", timeout=10) as response:  # nosec B310: fixed Google endpoint
-        identity = json.loads(response.read().decode())
-    if identity.get("aud") != os.environ["GOOGLE_CLIENT_ID"] or identity.get("iss") not in ("accounts.google.com", "https://accounts.google.com") or identity.get("email_verified") not in ("true", True):
+    identity = verify_google_id_token(id_token, os.environ["GOOGLE_CLIENT_ID"])
+    if identity.get("email_verified") not in ("true", True):
         raise ValueError("Google identity could not be validated")
-    if not identity.get("sub") or not identity.get("email"):
+    if not isinstance(identity.get("sub"), str) or not identity["sub"] or not isinstance(identity.get("email"), str) or not identity["email"]:
         raise ValueError("Google identity is incomplete")
+    returned_nonce = identity.get("nonce")
+    if not nonce or not isinstance(returned_nonce, str) or not secrets.compare_digest(nonce.encode(), returned_nonce.encode()):
+        raise ValueError("Google identity nonce could not be validated")
     return identity
 
 
@@ -130,33 +169,42 @@ def google_start():
     if not client_id or not os.getenv("GOOGLE_CLIENT_SECRET"):
         return RedirectResponse(f"{frontend_url()}/auth/google/callback?error=configuration", status_code=302)
     state = secrets.token_urlsafe(32)
+    nonce = secrets.token_urlsafe(32)
     authorization_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode({
         "client_id": client_id,
         "redirect_uri": callback_url(),
         "response_type": "code",
         "scope": "openid email profile",
         "state": state,
-        "access_type": "offline",
+        "nonce": nonce,
         "prompt": "select_account",
     })
     response = RedirectResponse(authorization_url, status_code=302)
-    response.set_cookie("bloqia_google_state", state, max_age=600, httponly=True, samesite="lax", secure=os.getenv("ENVIRONMENT") == "production")
+    transaction = encode_google_payload({"state": state, "nonce": nonce}, "google-transaction", GOOGLE_TRANSACTION_TTL_SECONDS)
+    response.set_cookie("bloqia_google_state", transaction, max_age=GOOGLE_TRANSACTION_TTL_SECONDS, httponly=True, samesite="lax", secure=os.getenv("ENVIRONMENT") == "production", path="/")
+    response.delete_cookie("bloqia_google_result", path="/")
     return response
 
 
 @router.get("/auth/google/callback")
 def google_callback(request: FastAPIRequest, code: str | None = None, state: str | None = None, error: str | None = None, users=Depends(user_repo), links=Depends(external_link_repo)):
-    state_is_valid = state is not None and secrets.compare_digest(state, request.cookies.get("bloqia_google_state", ""))
+    transaction = decode_google_payload(request.cookies.get("bloqia_google_state"), "google-transaction")
+    expected_state = transaction.get("state") if transaction else None
+    nonce = transaction.get("nonce") if transaction else None
+    state_is_valid = bool(state and isinstance(expected_state, str) and isinstance(nonce, str)
+                          and nonce and secrets.compare_digest(state.encode(), expected_state.encode()))
     if not state_is_valid:
         response = RedirectResponse(f"{frontend_url()}/auth/google/callback?error=state", status_code=302)
         response.delete_cookie("bloqia_google_state")
+        response.delete_cookie("bloqia_google_result")
         return response
     if error or not code:
         response = RedirectResponse(f"{frontend_url()}/auth/google/callback?error=provider", status_code=302)
         response.delete_cookie("bloqia_google_state")
+        response.delete_cookie("bloqia_google_result")
         return response
     try:
-        identity = google_identity(code)
+        identity = google_identity(code, nonce)
         user, token = GoogleAuth(users, links).complete(identity["sub"], state, identity["email"])
         result = {"user": user_profile(user), "accessToken": token, "expiresInSeconds": ACCESS_TOKEN_TTL_SECONDS}
     except GoogleCompletionRequired as exc:
@@ -164,12 +212,13 @@ def google_callback(request: FastAPIRequest, code: str | None = None, state: str
     except Exception:
         response = RedirectResponse(f"{frontend_url()}/auth/google/callback?error=provider", status_code=302)
         response.delete_cookie("bloqia_google_state")
+        response.delete_cookie("bloqia_google_result")
         return response
     response = RedirectResponse(f"{frontend_url()}/auth/google/callback", status_code=302)
     response.delete_cookie("bloqia_google_state")
     if "accessToken" in result:
         set_session_cookie(response, result["accessToken"])
-    response.set_cookie("bloqia_google_result", encode_result(result), max_age=120, httponly=True, samesite="lax", secure=os.getenv("ENVIRONMENT") == "production")
+    response.set_cookie("bloqia_google_result", encode_result(result), max_age=GOOGLE_RESULT_TTL_SECONDS, httponly=True, samesite="lax", secure=os.getenv("ENVIRONMENT") == "production", path="/")
     return response
 
 

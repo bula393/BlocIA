@@ -1,4 +1,4 @@
-def test_technical_profile_contract(client, access_token):
+def test_technical_profile_contract(client, access_token, verified_email):
     headers = {"Authorization": f"Bearer {access_token}"}
     assert client.get("/technical-profile/providers", headers=headers).status_code == 200
     assert client.post("/technical-profile/tokens", headers=headers, json={"providerId": "openai", "token": "abc123"}).status_code == 200

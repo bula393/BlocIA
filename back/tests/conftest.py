@@ -43,3 +43,34 @@ def access_token(client, seeded_user):
     # Browser-session behaviour has its own explicit coverage.
     client.cookies.delete("bloqia_session")
     return response.json()["accessToken"]
+
+
+@pytest.fixture
+def email_verifier(client, seeded_user, tmp_path):
+    from app.application.user.verify_email import VerifyEmail
+    from app.infrastructure.database import Database
+    from app.infrastructure.user.email_verification_repository import EmailVerificationRepository
+    from app.infrastructure.user.sqlite_repositories import UserRepository
+
+    class CaptureSender:
+        def __init__(self):
+            self.messages = []
+
+        def send_verification(self, mail, code, expires_seconds):
+            self.messages.append((mail, code, expires_seconds))
+
+    database = Database(tmp_path / "verification.sqlite3")
+    UserRepository(database).save(seeded_user)
+    sender = CaptureSender()
+    clock = [1800000000.0]
+    verifier = VerifyEmail(EmailVerificationRepository(database), sender, "test-verification-secret-at-least-32-characters", lambda: clock[0])
+    client.app.dependency_overrides[dependencies.email_verification] = lambda: verifier
+    return verifier, sender, clock
+
+
+@pytest.fixture
+def verified_email(client, access_token, email_verifier):
+    headers = {"Authorization": f"Bearer {access_token}"}
+    assert client.post("/technical-profile/email-verification/request", headers=headers).status_code == 200
+    code = email_verifier[1].messages[-1][1]
+    assert client.post("/technical-profile/email-verification/confirm", headers=headers, json={"code": code}).status_code == 200

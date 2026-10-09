@@ -1,7 +1,12 @@
+import os
+
 from fastapi import Cookie, Depends, Header, HTTPException
 
 from app.application.user.session import parse_access_token
 from app.infrastructure.database import get_database
+from app.application.user.verify_email import VerifyEmail
+from app.infrastructure.user.email_verification_repository import EmailVerificationRepository
+from app.infrastructure.user.smtp_email_sender import SmtpEmailSender
 from app.infrastructure.user.sqlite_repositories import (
     ModelRepository,
     ProviderRepository,
@@ -39,6 +44,11 @@ def token_repo(database=Depends(get_database)):
 
 def usage_repo(database=Depends(get_database)):
     return UsageRepository(database)
+
+
+def email_verification(database=Depends(get_database)):
+    return VerifyEmail(EmailVerificationRepository(database), SmtpEmailSender(),
+                       os.getenv("ACCESS_TOKEN_SECRET", ""))
 
 
 def current_user_mail(

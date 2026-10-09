@@ -1,17 +1,44 @@
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.application.user.list_technical_providers import ListTechnicalProviders
 from app.application.user.list_available_models import ListAvailableModels, ProviderModelsUnavailableError
 from app.application.user.remove_provider_token import RemoveProviderToken
 from app.application.user.save_provider_token import ProviderUnavailableError, SaveProviderToken
 from app.application.chat.default_provider_tokens import default_provider_token
-from .dependencies import current_user_mail, model_repo, provider_repo, token_repo, usage_repo
+from app.application.user.verify_email import EmailVerificationError
+from .dependencies import current_user_mail, email_verification, model_repo, provider_repo, token_repo, usage_repo
 from .errors import error_response, validation_error_response
 from .serializers import provider_schema, token_status
-from .technical_profile_schemas import ProviderTokenSaveRequest
+from .technical_profile_schemas import EmailVerificationConfirmRequest, ProviderTokenSaveRequest
 from app.domain.user.usage_event import UsageEvent
 
 router = APIRouter(tags=["TechnicalProfile"])
+
+
+def verification_error(exc):
+    headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else None
+    return HTTPException(status_code=exc.status_code, detail={"message": str(exc)}, headers=headers)
+
+
+@router.get("/technical-profile/email-verification")
+def email_verification_status(mail: str = Depends(current_user_mail), verification=Depends(email_verification)):
+    return verification.status(mail)
+
+
+@router.post("/technical-profile/email-verification/request")
+def request_email_verification(mail: str = Depends(current_user_mail), verification=Depends(email_verification)):
+    try:
+        return verification.request(mail)
+    except EmailVerificationError as exc:
+        raise verification_error(exc)
+
+
+@router.post("/technical-profile/email-verification/confirm")
+def confirm_email_verification(payload: EmailVerificationConfirmRequest, mail: str = Depends(current_user_mail), verification=Depends(email_verification)):
+    try:
+        return verification.confirm(mail, payload.code)
+    except EmailVerificationError as exc:
+        raise verification_error(exc)
 
 
 @router.get("/technical-profile/providers")
@@ -49,11 +76,14 @@ def list_available_models(provider_id: str, mail: str = Depends(current_user_mai
 
 
 @router.post("/technical-profile/tokens")
-def save_token(payload: ProviderTokenSaveRequest, mail: str = Depends(current_user_mail), providers=Depends(provider_repo), tokens=Depends(token_repo), usage=Depends(usage_repo)):
+def save_token(payload: ProviderTokenSaveRequest, mail: str = Depends(current_user_mail), providers=Depends(provider_repo), tokens=Depends(token_repo), usage=Depends(usage_repo), verification=Depends(email_verification)):
     try:
+        verification.require_verified(mail)
         token = SaveProviderToken(providers, tokens).execute(mail, payload.providerId, payload.token)
         usage.record(UsageEvent(mail, "provider_token_saved", payload.providerId))
         return token_status(token.provider_id, token.status.value, token)
+    except EmailVerificationError as exc:
+        raise verification_error(exc)
     except ProviderUnavailableError as exc:
         raise validation_error_response(str(exc), {"providerId": str(exc)})
     except ValueError as exc:

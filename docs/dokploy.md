@@ -64,6 +64,27 @@ Los nombres internos `blocia-clasificador-nrn9qa` y `bloqia-back-b1bgga` aparece
 
 Generá los secretos en tu equipo, sin pegarlos en el chat. `ACCESS_TOKEN_SECRET` y `BLOCIA_INFERENCE_TOKEN` deben ser valores distintos; el token de inferencia sí se comparte entre `back` y `clasificador`. Para `BLOCIA_ENCRYPTION_KEY`, ejecutá `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` y guardá una copia segura: si se pierde o cambia, la app no podrá descifrar los tokens de proveedores ya almacenados. Las credenciales `BLOCIA_DEFAULT_*_TOKEN` son opcionales. Google Login también es opcional y requiere `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y registrar `https://bloqia.policloudservices.ipm.edu.ar/api/auth/google/callback` como URL de retorno.
 
+### Google Login y verificación de correo para claves propias
+
+Seguí [la guía de Google OAuth](../back/GOOGLE_OAUTH_SETUP.md) para crear un cliente de tipo **Aplicación web**. En **Google Auth Platform**, completá Branding/Audience y agregá las cuentas de prueba mientras el proyecto esté en Testing. Usá como origen `https://bloqia.policloudservices.ipm.edu.ar` y como redirect autorizado `https://bloqia.policloudservices.ipm.edu.ar/api/auth/google/callback`. Guardá `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y esa misma `GOOGLE_REDIRECT_URI` solo en **back → Environment**; después desplegá back. El secreto OAuth es distinto de una clave Gemini y nunca se incluye en el frontend.
+
+Para conectar claves propias de proveedores, cada cuenta debe recibir y confirmar un código en su correo. Configurá estas variables únicamente en **back → Environment**:
+
+| Variable | Ejemplo Gmail | Función |
+| --- | --- | --- |
+| `SMTP_HOST` | `smtp.gmail.com` | Servidor de envío |
+| `SMTP_PORT` | `587` | Puerto SMTP saliente; independiente de los puertos públicos de la app |
+| `SMTP_SECURITY` | `starttls` | TLS obligatorio; también admite `ssl` con puerto `465` |
+| `SMTP_USERNAME` | `tu-cuenta@gmail.com` | Cuenta remitente |
+| `SMTP_PASSWORD` | Contraseña de aplicación | Credencial SMTP, nunca la contraseña habitual |
+| `SMTP_FROM` | `tu-cuenta@gmail.com` | Dirección remitente autorizada por el servidor SMTP |
+
+Para Gmail, activá la verificación en dos pasos y generá una contraseña para BloqIA en [Contraseñas de aplicación](https://myaccount.google.com/apppasswords). Algunas cuentas institucionales no permiten esta opción; en ese caso usá el SMTP que habilite el administrador o un proveedor de correo transaccional. [Ayuda de Google](https://support.google.com/accounts/answer/185833?hl=es).
+
+El código tiene seis dígitos, vence en diez minutos y admite cinco intentos. Se puede reenviar después de un minuto, con un máximo de diez envíos por cuenta cada 24 horas. PostgreSQL conserva los intentos y la verificación entre despliegues; el código se guarda como HMAC y se elimina al confirmar. Si falta SMTP o falla la entrega, la API rechaza guardar claves propias. Las credenciales del servidor y la eliminación de claves existentes siguen disponibles. Incluso las cuentas que entran con Google deben completar este código para conectar una clave propia.
+
+Validación real: abrí la app en un navegador habitual, entrá con Google y verificá que vuelva al chat (o a completar el registro si es una cuenta nueva). En Perfil técnico, pedí un código, comprobá la recepción, ingresalo y conectá una clave. Comprobá también que una cuenta sin verificar recibe `403` al guardar una clave por API. Las pruebas automatizadas simulan Google y SMTP; no reemplazan esta validación con credenciales y entrega reales.
+
 ## 4. Configurar las rutas públicas de front y back
 
 En **Domains** de cada Application, usá el mismo host existente en `back`: `BloqIA.policloudservices.ipm.edu.ar`. Configurá estas dos rutas:

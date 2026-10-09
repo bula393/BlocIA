@@ -5,6 +5,7 @@ import { usePerfilTecnico } from '../features/usuario/usePerfilTecnico';
 import { listAvailableModels } from '../api/technicalProfile';
 import { ApiRequestError } from '../api/client';
 import { Icon } from '../mockup/brand';
+import { EmailVerification } from '../features/usuario/components/EmailVerification';
 import type { AIModel, ProviderWithModels } from '../types/dominio';
 
 const guides: Record<string, { tier: string; detail: string; keys: string; conditions: string }> = {
@@ -63,12 +64,13 @@ function ModelCatalog({ provider, models }: { provider: ProviderWithModels; mode
   </div>;
 }
 
-function ProviderSection({ provider, token, setToken, save, remove }: {
+function ProviderSection({ provider, token, setToken, save, remove, emailVerified }: {
   provider: ProviderWithModels;
   token: string;
   setToken: (value: string) => void;
   save: ReturnType<typeof usePerfilTecnico>['save'];
   remove: ReturnType<typeof usePerfilTecnico>['remove'];
+  emailVerified: boolean;
 }) {
   const guide = guides[provider.providerId];
   const catalog = useQuery({
@@ -101,12 +103,13 @@ function ProviderSection({ provider, token, setToken, save, remove }: {
     {displayedModels.length > 0 && <ModelCatalog provider={provider} models={displayedModels} />}
     <label className="provider-token-field"><span>Clave API de {providerLabel(provider)}</span><input aria-label={`Clave API ${providerLabel(provider)}`} value={token} onChange={(event) => setToken(event.target.value)} placeholder="Pegá tu clave API personal" type="password" autoComplete="off" spellCheck={false} /></label>
     <p className="provider-secret-help">Pegá una clave API de este proveedor. No ingreses tu contraseña de Google, ChatGPT ni Claude.</p>
-    <div className="bloq-actions"><button type="button" onClick={() => remove.mutate(provider.providerId)} disabled={!configured || removing}>Quitar clave</button><button type="button" data-primary="true" onClick={() => save.mutate({ providerId: provider.providerId, token: token.trim() }, { onSuccess: () => setToken('') })} disabled={!token.trim() || saving}>{saving ? 'Guardando…' : 'Conectar clave'}</button></div>
+    {!emailVerified && <p className="provider-verification-help" id={`verification-help-${provider.providerId}`}><a href="#verificacion-correo">Verificá tu correo</a> antes de guardar o cambiar esta clave.</p>}
+    <div className="bloq-actions"><button type="button" onClick={() => remove.mutate(provider.providerId)} disabled={!configured || removing}>Quitar clave</button><button type="button" data-primary="true" onClick={() => save.mutate({ providerId: provider.providerId, token: token.trim() }, { onSuccess: () => setToken('') })} aria-describedby={!emailVerified ? `verification-help-${provider.providerId}` : undefined} disabled={!emailVerified || !token.trim() || saving}>{saving ? 'Guardando…' : 'Conectar clave'}</button></div>
   </section>;
 }
 
 export function PerfilTecnico() {
-  const { providers, save, remove } = usePerfilTecnico();
+  const { providers, save, remove, verification, requestVerification, confirmVerification } = usePerfilTecnico();
   const [tokenByProvider, setTokenByProvider] = useState<Record<string, string>>({});
   const orderedProviders = [...(providers.data?.providers ?? [])].sort((first, second) => {
     const a = providerOrder.indexOf(first.providerId);
@@ -123,10 +126,11 @@ export function PerfilTecnico() {
       <div><strong>OpenRouter</strong><span>Rutas gratuitas</span><a href="#provider-openrouter">Configurar</a></div>
     </div>
     <p className="provider-free-disclaimer">Los cupos y modelos pueden cambiar. Consultá las condiciones actuales de cada proveedor antes de enviar peticiones.</p>
+    <EmailVerification verification={verification} requestVerification={requestVerification} confirmVerification={confirmVerification} />
     {providers.isLoading && <p>Cargando proveedores...</p>}
     {providers.isError && <p className="bloq-error">No se pudieron cargar los proveedores.</p>}
-    {orderedProviders.map((provider) => <ProviderSection key={provider.providerId} provider={provider} token={tokenByProvider[provider.providerId] ?? ''} setToken={(value) => setTokenByProvider((current) => ({ ...current, [provider.providerId]: value }))} save={save} remove={remove} />)}
-    {save.isError && <p className="bloq-error">No se pudo guardar la clave.</p>}
-    {save.isSuccess && <p className="bloq-success">Clave guardada. El catálogo mostrará los modelos disponibles para esta credencial.</p>}
+    {orderedProviders.map((provider) => <ProviderSection key={provider.providerId} provider={provider} token={tokenByProvider[provider.providerId] ?? ''} setToken={(value) => setTokenByProvider((current) => ({ ...current, [provider.providerId]: value }))} save={save} remove={remove} emailVerified={Boolean(verification.data?.verified)} />)}
+    {save.isError && <p className="bloq-error" role="alert">{save.error instanceof Error ? save.error.message : 'No se pudo guardar la clave. Volvé a intentarlo.'}</p>}
+    {save.isSuccess && <p className="bloq-success" role="status">Clave guardada. El catálogo mostrará los modelos disponibles para esta credencial.</p>}
   </ChasisBloqIA>;
 }

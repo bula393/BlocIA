@@ -11,6 +11,17 @@ CREATE TABLE IF NOT EXISTS credentials (
     user_mail TEXT PRIMARY KEY REFERENCES users(mail) ON DELETE CASCADE,
     payload TEXT NOT NULL CHECK(json_valid(payload))
 );
+CREATE TABLE IF NOT EXISTS email_verifications (
+    user_mail TEXT PRIMARY KEY REFERENCES users(mail) ON DELETE CASCADE,
+    verified_at REAL,
+    code_digest TEXT,
+    nonce TEXT,
+    expires_at REAL NOT NULL DEFAULT 0,
+    attempts_left INTEGER NOT NULL DEFAULT 0,
+    sent_at REAL NOT NULL DEFAULT 0,
+    window_started_at REAL NOT NULL DEFAULT 0,
+    send_count INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS external_links (
     provider TEXT NOT NULL, external_subject TEXT NOT NULL,
     user_mail TEXT NOT NULL REFERENCES users(mail) ON DELETE CASCADE,

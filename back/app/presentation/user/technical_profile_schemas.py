@@ -6,6 +6,10 @@ class ProviderTokenSaveRequest(BaseModel):
     token: str = Field(min_length=1)
 
 
+class EmailVerificationConfirmRequest(BaseModel):
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
 class ProviderTokenStatus(BaseModel):
     providerId: str
     status: str

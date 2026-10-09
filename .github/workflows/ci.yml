@@ -93,8 +93,8 @@ jobs:
         run: npm run build
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Verify the personal quota flow on desktop and mobile
-        run: npm run test:e2e -- tests/e2e/personal-quota.spec.ts --reporter=line,junit --trace=retain-on-failure
+      - name: Verify personal quota, Google callback and email verification
+        run: npm run test:e2e -- tests/e2e/personal-quota.spec.ts tests/e2e/google-callback.spec.ts tests/e2e/perfil-tecnico-visual.spec.ts --reporter=line,junit --trace=retain-on-failure
       - name: Upload frontend results and browser evidence
         if: always()
         uses: actions/upload-artifact@v7

@@ -1,6 +1,28 @@
 import { apiRequest } from './client';
 import type { AvailableModelsResponse, ProviderTokenStatus, ProviderWithModels } from '../types/dominio';
 
+export interface EmailVerificationStatus {
+  verified: boolean;
+  email: string;
+  expiresInSeconds: number | null;
+  resendInSeconds: number;
+}
+
+export function getEmailVerification() {
+  return apiRequest<EmailVerificationStatus>('/technical-profile/email-verification');
+}
+
+export function requestEmailVerification() {
+  return apiRequest<EmailVerificationStatus>('/technical-profile/email-verification/request', { method: 'POST' });
+}
+
+export function confirmEmailVerification(code: string) {
+  return apiRequest<EmailVerificationStatus>('/technical-profile/email-verification/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code })
+  });
+}
+
 export function listTechnicalProviders() {
   return apiRequest<{ providers: ProviderWithModels[] }>('/technical-profile/providers');
 }

@@ -58,6 +58,12 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       GOOGLE_SESSION_SECRET: ${GOOGLE_SESSION_SECRET:-}
       GOOGLE_REGISTRATION_SECRET: ${GOOGLE_REGISTRATION_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     depends_on:
       inference:
         condition: service_healthy
