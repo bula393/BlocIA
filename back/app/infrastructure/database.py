@@ -58,8 +58,9 @@ class Database:
     def _execute(self, connection, sql, parameters=()):
         if self.is_postgres:
             # Application SQL uses SQLite-style qmark parameters in both local and
-            # production modes. No query contains literal question marks.
-            sql = sql.replace("?", "%s")
+            # production modes. Escape SQL percent wildcards for psycopg before
+            # converting parameter markers.
+            sql = sql.replace("%", "%%").replace("?", "%s")
         return connection.execute(sql, parameters)
 
     def _initialize_sqlite(self):
