@@ -1,14 +1,15 @@
 # Subir BlocIA a Dokploy
 
-En el proyecto `BloqIa` se usan tres servicios **Application** independientes con proveedor **Docker**: `back`, `front` y `clasificador`. GitHub Actions publica las imágenes y, cuando se habilita `DEPLOY_ENABLED`, actualiza el tag y solicita el despliegue de cada Application mediante la API de Dokploy. Los archivos de `deploy/*/compose.yaml` quedan como alternativa para quien prefiera administrar recursos Docker Compose.
+En el proyecto `BloqIa` se usan tres servicios **Application** independientes con proveedor **Docker** (`back`, `front` y `clasificador`) y una base **PostgreSQL** administrada como recurso Database separado. GitHub Actions publica las imágenes y, cuando se habilita `DEPLOY_ENABLED`, actualiza el tag y solicita el despliegue de las tres Applications mediante la API de Dokploy. PostgreSQL se conserva entre versiones y no se recrea en cada push.
 
 | Servicio | Función | Puerto del contenedor | Datos persistentes |
 | --- | --- | --- | --- |
-| `back` | `ghcr.io/bula393/blocia-api:<SHA>` | 8000, privado | Volumen en `/app/data` |
+| `database` | PostgreSQL para cuentas, chats, límites y credenciales cifradas | 5432, solo red privada | Volumen administrado por Dokploy |
+| `back` | `ghcr.io/bula393/blocia-api:<SHA>` | 8000, privado | Usa `database`; conserva la clave Fernet en Environment |
 | `front` | `ghcr.io/bula393/blocia-frontend:<SHA>` | 8080, público | Ninguno |
 | `clasificador` | `ghcr.io/bula393/blocia-inference:<SHA>` | 8001, privado | Volumen en `/app/models` |
 
-Configurá únicamente un dominio público para `front`. La API y el clasificador permanecen privados. Al completar los servicios, asegurate de mantener un volumen persistente para los datos del backend y otro para los modelos del clasificador; los tags de imagen son inmutables y cambian en cada push aprobado.
+Configurá únicamente un dominio público para `front`. La base, la API y el clasificador permanecen privados. Dokploy administra la persistencia de PostgreSQL; el clasificador necesita un volumen persistente para sus modelos. Los tags de imagen son inmutables y cambian en cada push aprobado.
 
 El código está organizado en `front/src/features/chat/` para el chat y sus componentes; `back/app/bootstrap.py` para montar la API; `back/app/application/` para casos de uso; `back/app/presentation/` para contratos HTTP; `back/app/infrastructure/` para persistencia y transportes; y `back/app/inference_main.py` para la IA independiente.
 
@@ -20,9 +21,11 @@ Los límites iniciales son 6 GB para inferencia, 512 MB para la API y 128 MB par
 
 Por defecto, `BLOCIA_ENABLE_LOCAL_CHAT=0` instala solamente el clasificador. Para generar respuestas, conectá un proveedor desde Perfil técnico, configurá una credencial del servidor, o cambiá esa variable a `1` para instalar Qwen3-0.6B. La primera instalación descarga pesos en el volumen; puede tardar varios minutos. Los despliegues siguientes reutilizan esos archivos.
 
-## 2. Crear las tres Applications en Dokploy
+## 2. Crear PostgreSQL y las tres Applications en Dokploy
 
-En el proyecto y entorno de producción que ya abriste, creá tres recursos de tipo **Application**. Usá el mismo servidor y el proveedor **Docker** para cada uno. No elijas Docker Compose para este flujo.
+En el proyecto y entorno `production` que ya abriste, creá primero un recurso **Database → PostgreSQL** llamado `blocia-db`. Usá la misma instancia/servidor y entorno que las Applications. Elegí un nombre de base y de usuario dedicados (`blocia` y `blocia_app`) y generá una contraseña URL-safe en tu equipo con `python -c "import secrets; print(secrets.token_urlsafe(48))"`; pegala directamente en Dokploy, no en el chat. Dejá desactivado **External Port/External Credentials**: la API se conectará por la conexión interna de Dokploy y PostgreSQL no quedará expuesto a Internet. Guardá el recurso y comprobá que esté listo. Dokploy muestra el host, puerto, credenciales internas y la **Internal Connection URL** en la pestaña de conexión ([guía oficial](https://docs.dokploy.com/docs/core/databases/connection)).
+
+Después, creá tres recursos de tipo **Application**: `back`, `front` y `clasificador`. Usá el mismo proyecto, entorno y servidor; elegí el proveedor **Docker** para cada uno. No elijas Docker Compose para este flujo.
 
 En cada servicio, completá el proveedor Docker de esta manera:
 
@@ -34,7 +37,7 @@ En cada servicio, completá el proveedor Docker de esta manera:
 
 Reemplazá `SHA_COMPLETO` por los 40 caracteres del commit que Actions publicó más recientemente; el resumen de la ejecución y la pestaña **Packages** muestran el tag exacto. Las imágenes son públicas, así que podés dejar vacíos usuario y contraseña del registro. No uses `latest`: cada versión queda identificada y se puede revertir. El workflow actualiza estas imágenes al SHA del push que haya pasado las pruebas. La aplicación `front` debe escuchar en el puerto de contenedor `8080`, `back` en `8000` y `clasificador` en `8001`.
 
-En `back`, agregá un volumen persistente montado en `/app/data`. En `clasificador`, agregá otro volumen persistente montado en `/app/models`; la descarga inicial del modelo puede demorar. No publiques los puertos `8000` ni `8001` hacia internet. Solo `front` requiere un dominio público.
+En `clasificador`, agregá un volumen persistente montado en `/app/models`; la descarga inicial del modelo puede demorar. No publiques los puertos `5432`, `8000` ni `8001` hacia Internet. Solo `front` requiere un dominio público.
 
 Las imágenes de GitHub se consultan desde [GHCR](https://github.com/bula393?tab=packages). Para las imágenes públicas no hace falta crear credenciales del registro en Dokploy. Si después hacés privados los paquetes, creá un token de GitHub con `read:packages` y configurá un Registry GHCR con ese usuario y token. Actions publica con su `GITHUB_TOKEN` automático. Referencias: [GHCR en Dokploy](https://docs.dokploy.com/docs/core/registry/ghcr) y [permisos del Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
@@ -46,6 +49,8 @@ En la pestaña **Environment** de cada Application, agregá las variables de run
 | --- | --- | --- |
 | `back` | `FRONTEND_URL` | `https://TU_DOMINIO`, sin barra final |
 | `back` | `ACCESS_TOKEN_SECRET` | Secreto aleatorio de al menos 32 caracteres |
+| `back` | `DATABASE_URL` | **Internal Connection URL** que muestra el recurso PostgreSQL de Dokploy |
+| `back` | `BLOCIA_ENCRYPTION_KEY` | Clave Fernet aleatoria; necesaria para cifrar los tokens de proveedores guardados por la app |
 | `back` | `BLOCIA_LOCK_MINUTES` | Minutos de bloqueo deseados; `1440` equivale a un día |
 | `back` | `BLOCIA_INFERENCE_URL` | `http://blocia-clasificador-nrn9qa:8001` |
 | `back` | `BLOCIA_INFERENCE_TOKEN` | Secreto aleatorio compartido con `clasificador` |
@@ -53,11 +58,9 @@ En la pestaña **Environment** de cada Application, agregá las variables de run
 | `clasificador` | `BLOCIA_INFERENCE_TOKEN` | El mismo valor configurado en `back` |
 | `clasificador` | `BLOCIA_ENABLE_LOCAL_CHAT` | `0` para solo clasificar; `1` habilita Qwen local y requiere más memoria |
 
-Los nombres internos `blocia-clasificador-nrn9qa` y `bloqia-back-b1bgga` aparecen debajo del título de cada Application en Dokploy. Las dos Applications deben compartir la red interna de Dokploy para que puedan resolverse entre sí. Si Dokploy vuelve a generar esos nombres al recrear un servicio, actualizá las URLs correspondientes. No publiques los puertos `8000` ni `8001` al exterior.
+Los nombres internos `blocia-clasificador-nrn9qa` y `bloqia-back-b1bgga` aparecen debajo del título de cada Application en Dokploy. Las Applications y el recurso PostgreSQL deben compartir la red privada del entorno para que se resuelvan entre sí. Usá la **Internal Connection URL** que Dokploy muestra; no armes una URL con el host externo. No publiques los puertos `5432`, `8000` ni `8001` al exterior.
 
-Generá secretos distintos en tu equipo con `python -c "import secrets; print(secrets.token_urlsafe(48))"`. `BLOCIA_INFERENCE_TOKEN` debe tener el mismo valor en API e IA; `ACCESS_TOKEN_SECRET` debe ser diferente. Las credenciales de proveedores (`BLOCIA_DEFAULT_*_TOKEN`) son opcionales; también se pueden conectar credenciales por usuario desde la app. Google Login es opcional y requiere `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y registrar `https://TU_DOMINIO/api/auth/google/callback` como URL de retorno. `BLOCIA_ENCRYPTION_KEY` también es opcional: si se deja vacía, la API la conserva en `/app/data`. No cambies esa clave si ya hay credenciales guardadas.
-
-Generá secretos distintos en tu equipo con `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Las variables `BLOCIA_DEFAULT_*_TOKEN` son opcionales; también se pueden conectar credenciales por usuario desde la app. Google Login es opcional y requiere `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y registrar la URL de retorno exacta. `BLOCIA_ENCRYPTION_KEY` también es opcional: si se deja vacía, la API la conserva en `/app/data`. No cambies esa clave si ya hay credenciales guardadas.
+Generá los secretos en tu equipo, sin pegarlos en el chat. `ACCESS_TOKEN_SECRET` y `BLOCIA_INFERENCE_TOKEN` deben ser valores distintos; el token de inferencia sí se comparte entre `back` y `clasificador`. Para `BLOCIA_ENCRYPTION_KEY`, ejecutá `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` y guardá una copia segura: si se pierde o cambia, la app no podrá descifrar los tokens de proveedores ya almacenados. Las credenciales `BLOCIA_DEFAULT_*_TOKEN` son opcionales. Google Login también es opcional y requiere `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y registrar `https://TU_DOMINIO/api/auth/google/callback` como URL de retorno.
 
 ## 4. Configurar el dominio público
 
@@ -93,9 +96,9 @@ La API de Dokploy utilizada es [application.saveDockerProvider](https://docs.dok
 3. Cuando `DEPLOY_ENABLED=true`, Actions verifica que el commit siga siendo la punta de `main`, actualiza las imágenes Docker de las Applications y solicita el despliegue en orden `clasificador` → `back` → `front`.
 4. Abrí **Deployments** y **Logs** de cada Application en Dokploy para seguir su estado. Un resultado exitoso de Actions confirma que Dokploy aceptó las solicitudes; revisá allí que los contenedores queden saludables y que el dominio responda.
 
-La primera vez, mantené `DEPLOY_ENABLED=false` hasta completar las variables, los volúmenes persistentes, el dominio y la API key. Luego habilitalo y podés ejecutar **Actions → Deploy to Dokploy → Run workflow** para probar manualmente. El workflow manual vuelve a ejecutar CI antes de publicar. Los pushes a otras ramas y los pull requests ejecutan las comprobaciones, pero no despliegan producción.
+La primera vez, mantené `DEPLOY_ENABLED=false` hasta completar PostgreSQL, las variables, los volúmenes, el dominio y la API key. Luego habilitalo y podés ejecutar **Actions → Deploy to Dokploy → Run workflow** para probar manualmente. El workflow manual vuelve a ejecutar CI antes de publicar. Los pushes a otras ramas y los pull requests ejecutan las comprobaciones, pero no despliegan producción.
 
-El workflow conserva el SHA completo de cada versión. Para hacer rollback, elegí el SHA anterior y volvé a colocar su imagen en la Application correspondiente desde Dokploy. Las migraciones de datos no se revierten automáticamente; conservá los volúmenes y respaldá `/app/data` antes de cambios de esquema.
+El workflow conserva el SHA completo de cada versión. Para hacer rollback, elegí el SHA anterior y volvé a colocar su imagen en la Application correspondiente desde Dokploy. Conservá la base y su respaldo antes de actualizar el esquema; un rollback de imagen no revierte cambios de datos.
 
 CI conserva resultados JUnit, evidencias del navegador e informe de dependencias en **Artifacts**. Los fallos de prueba o construcción detienen la publicación; el informe de dependencias es informativo y no modifica el código automáticamente.
 
@@ -108,14 +111,14 @@ Si preferís administrar contenedores mediante Compose en lugar de las tres Appl
 - Cada tarjeta de Dokploy tiene sus propios **Deployments**, **Logs** y controles de reinicio; abrí el recurso que quieras revisar. En GitHub, abrí la ejecución y descargá los informes cuando una comprobación falle.
 - `/healthz` confirma que responde Nginx. `/api/health` confirma la base de datos. `/api/ready` exige base e IA disponibles. `/version.json` identifica la imagen de la interfaz.
 - El primer arranque del clasificador puede tardar por la descarga de modelos; seguí su estado en **Deployments** y **Logs** de Dokploy.
-- Conservá los volúmenes y las claves entre despliegues. Respaldá `/app/data`, que contiene SQLite y la clave de cifrado. Para una copia consistente de SQLite, pausá la Application `back` o usá la operación de backup de SQLite; no copies solamente el archivo principal mientras escribe en WAL.
+- Conservá el servicio PostgreSQL y su volumen. Configurá y probá backups en la pestaña **Backup** de Dokploy. Guardá `BLOCIA_ENCRYPTION_KEY` en un lugar seguro y mantené el mismo valor entre despliegues para poder descifrar las credenciales de proveedores.
 - Para volver a una versión anterior, colocá en cada Application el tag completo del SHA anterior publicado y desplegá `clasificador`, `back` y `front` en ese orden. Conservá los volúmenes. Un rollback de código no revierte migraciones de datos; guardá una copia antes de cambios de esquema.
 - La preparación de IA rechaza cambios de revisión que sobrescribirían pesos existentes. Para actualizar modelos, hacé una copia del volumen y ejecutá explícitamente `python -m ml.prepare --classifier-only --force-model-revision` dentro del contenedor de `clasificador`; omití `--classifier-only` si habilitaste Qwen. Reiniciá esa Application después. No se forza ese cambio en cada despliegue.
-- Una API y SQLite son la configuración actual. Para escalar a varias instancias de API hace falta migrar la persistencia a una base compartida.
+- El back usa PostgreSQL mediante `DATABASE_URL`; SQLite queda como opción local de desarrollo y pruebas.
 
 ## Si ya desplegaste la configuración conjunta con Compose
 
-Las instrucciones de este apartado aplican solo si migrás una instalación anterior desde Compose a Applications. Podés reutilizar los datos existentes configurando en cada Application los nombres reales de los volúmenes previos. Consultá esos nombres en Dokploy. Pausá la API anterior antes de iniciar la nueva sobre SQLite y conservá su clave de cifrado. No borres los volúmenes al retirar el recurso anterior.
+Las instrucciones de este apartado aplican solo si migrás una instalación anterior que guardaba datos en SQLite. La nueva versión no copia automáticamente el archivo SQLite a PostgreSQL. Antes de cambiar, respaldá la base y sus claves; importá los datos con un procedimiento de migración antes de abrir el nuevo back. No retires el volumen viejo hasta verificar cuentas, chats y credenciales en PostgreSQL.
 
 El antiguo [`deploy/dokploy.compose.yaml`](../deploy/dokploy.compose.yaml) permanece como alternativa conjunta manual; el workflow descrito arriba usa las tres Applications y la API de Dokploy.
 
@@ -128,7 +131,7 @@ docker compose --env-file .env up --build -d
 docker compose logs -f inference
 ```
 
-Abrí `http://localhost:8080` cuando los servicios estén listos. El Compose local conjunto usa cookies de desarrollo para HTTP. Los datos se guardan en volúmenes de Docker separados de tus carpetas de desarrollo.
+Abrí `http://localhost:8080` cuando los servicios estén listos. El Compose local usa SQLite y cookies de desarrollo para HTTP. La configuración conjunta `deploy/dokploy.compose.yaml` agrega PostgreSQL como contenedor independiente y conserva sus datos en `database-data`.
 
 Para verificar archivos sin desplegar:
 

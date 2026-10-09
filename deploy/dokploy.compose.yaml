@@ -43,7 +43,7 @@ services:
       BLOCIA_INFERENCE_URL: http://inference:8001
       BLOCIA_INFERENCE_TOKEN: ${BLOCIA_INFERENCE_TOKEN:?Define BLOCIA_INFERENCE_TOKEN}
       BLOCIA_INFERENCE_TIMEOUT_SECONDS: ${BLOCIA_INFERENCE_TIMEOUT_SECONDS:-300}
-      BLOCIA_DATABASE_PATH: /app/data/blocia.sqlite3
+      DATABASE_URL: postgresql://${POSTGRES_USER:-blocia}:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-blocia}
       BLOCIA_LOCK_MINUTES: ${BLOCIA_LOCK_MINUTES:-1440}
       BLOCIA_PRELOAD_CLASSIFIER: "0"
       BLOCIA_PRELOAD_LOCAL_CHAT: "0"
@@ -52,16 +52,16 @@ services:
       BLOCIA_DEFAULT_OPENROUTER_TOKEN: ${BLOCIA_DEFAULT_OPENROUTER_TOKEN:-}
       BLOCIA_DEFAULT_OPENAI_TOKEN: ${BLOCIA_DEFAULT_OPENAI_TOKEN:-}
       BLOCIA_DEFAULT_ANTHROPIC_TOKEN: ${BLOCIA_DEFAULT_ANTHROPIC_TOKEN:-}
-      BLOCIA_ENCRYPTION_KEY: ${BLOCIA_ENCRYPTION_KEY:-}
+      BLOCIA_ENCRYPTION_KEY: ${BLOCIA_ENCRYPTION_KEY:?Define BLOCIA_ENCRYPTION_KEY}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       GOOGLE_SESSION_SECRET: ${GOOGLE_SESSION_SECRET:-}
       GOOGLE_REGISTRATION_SECRET: ${GOOGLE_REGISTRATION_SECRET:-}
-    volumes:
-      - api-data:/app/data
     depends_on:
       inference:
+        condition: service_healthy
+      database:
         condition: service_healthy
     networks:
       - application
@@ -69,6 +69,36 @@ services:
     mem_limit: ${API_MEMORY_LIMIT:-512m}
     pids_limit: 256
     stop_grace_period: 45s
+
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-blocia}
+      POSTGRES_USER: ${POSTGRES_USER:-blocia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}
+    expose:
+      - "5432"
+    volumes:
+      - database-data:/var/lib/postgresql/data
+    networks:
+      - application
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-blocia} -d ${POSTGRES_DB:-blocia}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   inference:
     <<: *runtime
@@ -92,7 +122,7 @@ services:
     stop_grace_period: 120s
 
 volumes:
-  api-data:
+  database-data:
   inference-models:
 
 networks:

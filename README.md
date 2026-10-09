@@ -129,11 +129,11 @@ El clasificador no se ajusta con conversaciones de usuarios automáticamente. El
 
 ## Base de datos
 
-La aplicación utiliza **SQLite**, en `back/data/blocia.sqlite3`, con transacciones, claves foráneas, escritura WAL e índices. Al primer acceso importa el JSON anterior sin modificarlo y deja registrada la migración para no repetirla. Los cambios de cuenta y el guardado de mensajes se confirman completos o se revierten.
+En desarrollo local, la aplicación utiliza **SQLite** en `back/data/blocia.sqlite3`, con transacciones, claves foráneas, escritura WAL e índices. En Dokploy, el back usa PostgreSQL desde `DATABASE_URL` para separar la persistencia del contenedor de la API. Al primer acceso local importa el JSON anterior sin modificarlo y deja registrada la migración para no repetirla. Los cambios de cuenta y el guardado de mensajes se confirman completos o se revierten.
 
-Las claves de proveedores se cifran con Fernet. La clave de cifrado queda en `back/data/.token-encryption.key`, o se toma de `BLOCIA_ENCRYPTION_KEY`. Para respaldar la instalación hay que conservar tanto la base como esa clave. El almacenamiento viejo no conservaba los secretos: los tokens importados requieren reconexión.
+Las claves de proveedores se cifran con Fernet. En local, la clave queda en `back/data/.token-encryption.key`, o se toma de `BLOCIA_ENCRYPTION_KEY`. En Dokploy, definí y conservá `BLOCIA_ENCRYPTION_KEY` en el Environment del back junto con la base PostgreSQL. Para restaurar tokens guardados necesitás la misma clave. El almacenamiento viejo no conservaba los secretos: los tokens importados requieren reconexión.
 
-Variables opcionales: `BLOCIA_DATABASE_PATH`, `BLOCIA_DATA_PATH` (JSON anterior), `ACCESS_TOKEN_SECRET`, `BLOCIA_ENCRYPTION_KEY`, `FRONTEND_URL`, `BLOCIA_API_URL` (proxy de desarrollo). No subir `back/data`, claves ni modelos al repositorio.
+Variables de persistencia: `BLOCIA_DATABASE_PATH` y `BLOCIA_DATA_PATH` se usan en local; `DATABASE_URL` selecciona PostgreSQL en Dokploy. Otras variables de runtime incluyen `ACCESS_TOKEN_SECRET`, `BLOCIA_ENCRYPTION_KEY`, `FRONTEND_URL` y `BLOCIA_API_URL` (proxy de desarrollo). No subir `back/data`, claves ni modelos al repositorio.
 
 En desarrollo, completá los tokens predeterminados de `back/.env.dev`; en una instalación nueva, copialo desde `back/.env.dev.example`. Reiniciá el backend para aplicar los cambios. Las claves personales de cada usuario tienen prioridad; los valores globales nunca se devuelven al navegador. El catálogo de OpenRouter sigue limitado a modelos gratuitos.
 
@@ -141,9 +141,9 @@ En desarrollo, completá los tokens predeterminados de `back/.env.dev`; en una i
 
 `GET /health` ejecuta comprobaciones de integridad y relaciones de la base. `GET /chat/status`, autenticado, informa la disponibilidad del clasificador y las métricas de entrenamiento.
 
-Para reiniciar el contador móvil de 24 horas y desbloquear una cuenta de forma administrativa, ejecutá `python scripts/reset_user_daily_limit.py` desde `back` con el mismo `BLOCIA_DATABASE_PATH` que usa el backend. El comando solicita el correo, un motivo y una confirmación escrita con el correo. Guarda la fecha y el motivo del reinicio, quita el bloqueo actual y conserva los chats y métricas históricas.
+Para reiniciar el contador móvil de 24 horas y desbloquear una cuenta de forma administrativa, ejecutá `python scripts/reset_user_daily_limit.py` desde `back` con el mismo `DATABASE_URL` de Dokploy o `BLOCIA_DATABASE_PATH` local que usa el backend. El comando solicita el correo, un motivo y una confirmación escrita con el correo. Guarda la fecha y el motivo del reinicio, quita el bloqueo actual y conserva los chats y métricas históricas.
 
-Para verificar la base instalada con registros temporales que se revierten al terminar: `python -m ml.verify_database` desde `back`, usando el Python de `.venv`. Para respaldos en caliente, usar la API `sqlite3.Connection.backup`; no copiar solamente el archivo principal mientras hay escrituras activas.
+Para verificar la base SQLite local con registros temporales que se revierten al terminar: `python -m ml.verify_database` desde `back`, usando el Python de `.venv`. En Dokploy, configurá y comprobá las copias de seguridad desde el recurso PostgreSQL.
 
 ## Verificación
 

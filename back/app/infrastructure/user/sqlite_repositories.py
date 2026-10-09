@@ -112,6 +112,8 @@ class TokenRepository(Repository):
         key = os.getenv("BLOCIA_ENCRYPTION_KEY")
         if key:
             return Fernet(key.encode())
+        if self.database.is_postgres:
+            raise RuntimeError("BLOCIA_ENCRYPTION_KEY es obligatoria para cifrar credenciales con PostgreSQL.")
         key_path = self.database.path.parent / ".token-encryption.key"
         try:
             descriptor = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

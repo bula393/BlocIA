@@ -10,19 +10,19 @@ reset timestamp so prior usage no longer counts toward the rolling limit.
 from datetime import datetime, timezone
 import os
 from pathlib import Path
-import sqlite3
 import sys
 
 
 BACK_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACK_DIR))
 
-from app.infrastructure.database import ROOT  # noqa: E402
+from app.infrastructure.database import Database, ROOT  # noqa: E402
 
 
 def main() -> int:
+    database_url = os.getenv("DATABASE_URL")
     database_path = Path(os.getenv("BLOCIA_DATABASE_PATH", str(ROOT / "data/blocia.sqlite3")))
-    if not database_path.is_file():
+    if not database_url and not database_path.is_file():
         print(f"No encuentro la base de datos: {database_path}")
         return 1
 
@@ -36,31 +36,15 @@ def main() -> int:
         print("El motivo es obligatorio para dejar registro de la acción.")
         return 1
 
-    connection = sqlite3.connect(database_path, timeout=30, isolation_level=None)
-    connection.row_factory = sqlite3.Row
     try:
-        connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA busy_timeout=30000")
-        connection.execute("BEGIN IMMEDIATE")
-
-        # Keep the command usable against an existing database before the
-        # backend has been restarted with the updated schema.
-        connection.execute(
-            "CREATE TABLE IF NOT EXISTS user_usage_resets ("
-            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-            "user_mail TEXT NOT NULL REFERENCES users(mail) ON DELETE CASCADE, "
-            "reset_at REAL NOT NULL, reason TEXT NOT NULL)"
-        )
-        connection.execute(
-            "CREATE INDEX IF NOT EXISTS usage_resets_by_user "
-            "ON user_usage_resets(user_mail, reset_at)"
-        )
-
-        users = connection.execute(
-            "SELECT mail FROM users WHERE lower(mail)=lower(?) LIMIT 2", (mail,)
-        ).fetchall()
+        database = Database(database_path, legacy_path=None, database_url=database_url)
+    except Exception as error:
+        print(f"No se pudo conectar a la base de datos ({type(error).__name__}).")
+        return 1
+    try:
+        with database.transaction():
+            users = database.query("SELECT mail FROM users WHERE lower(mail)=lower(?) LIMIT 2", (mail,))
         if len(users) != 1:
-            connection.rollback()
             print("No encontré una cuenta única con ese correo.")
             return 1
 
@@ -71,27 +55,24 @@ def main() -> int:
         ).strip().casefold()
         accepted_confirmations = {"reset", f"reset {account_mail}".casefold()}
         if confirmation not in accepted_confirmations:
-            connection.rollback()
             print("Cancelado. Escribí RESET para confirmar; no se modificó la cuenta.")
             return 1
 
         reset_at = datetime.now(timezone.utc).timestamp()
-        connection.execute(
-            "INSERT INTO user_usage_resets(user_mail, reset_at, reason) VALUES (?, ?, ?)",
-            (account_mail, reset_at, reason),
-        )
-        connection.execute("DELETE FROM user_usage_locks WHERE user_mail=?", (account_mail,))
-        connection.commit()
+        with database.transaction():
+            database.execute(
+                "INSERT INTO user_usage_resets(user_mail, reset_at, reason) VALUES (?, ?, ?)",
+                (account_mail, reset_at, reason),
+            )
+            database.execute("DELETE FROM user_usage_locks WHERE user_mail=?", (account_mail,))
         print(f"Límite reiniciado y bloqueo quitado para {account_mail}.")
         print(f"Fecha UTC: {datetime.fromtimestamp(reset_at, timezone.utc).isoformat()}")
         print("El historial de chats y uso quedó intacto.")
         return 0
-    except sqlite3.Error as error:
-        connection.rollback()
-        print(f"No se pudo completar el reinicio: {error}")
+    except Exception as error:
+        print(f"No se pudo completar el reinicio ({type(error).__name__}).")
         return 1
-    finally:
-        connection.close()
+    return 0
 
 
 if __name__ == "__main__":

@@ -50,15 +50,20 @@ def test_separate_resource_rejects_multiple_services_and_cross_resource_dependen
 
 
 @pytest.mark.parametrize("service", ["api", "inference"])
-def test_backend_resources_reject_public_exposure_and_ephemeral_storage(service):
+def test_backend_resources_reject_public_exposure_and_missing_persistence_config(service):
     compose = validation.load_mapping(f"deploy/{service}/compose.yaml")
     definition = compose["services"][service]
     definition["ports"] = ["8000:8000"]
     with pytest.raises(ValueError, match="host ports"):
         validation.validate_separate_service(compose, service)
     del definition["ports"]
-    definition["volumes"] = []
-    with pytest.raises(ValueError, match="persistent named volume"):
+    if service == "api":
+        definition["environment"]["DATABASE_URL"] = ""
+        message = "DATABASE_URL"
+    else:
+        definition["volumes"] = []
+        message = "persistent named volume"
+    with pytest.raises(ValueError, match=message):
         validation.validate_separate_service(compose, service)
 
 

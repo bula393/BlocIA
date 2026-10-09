@@ -50,15 +50,18 @@ def validate_separate_service(compose: dict, service: str) -> str:
         require(membership == {"application"}, f"{label}: backend services must remain on the private application network")
         release = definition.get("environment", {}).get("RELEASE_TAG", "")
         require(bool(re.fullmatch(r"\$\{RELEASE_TAG(?::\?[^}]+)?\}", release)), f"{label}: runtime release must match its image tag")
-        declared_volumes = compose.get("volumes", {})
-        storage_path = "/app/data" if service == "api" else "/app/models"
-        mounts = [
-            (mount.get("source", ""), mount.get("target", "")) if isinstance(mount, dict)
-            else tuple(str(mount).split(":")[:2])
-            for mount in definition.get("volumes", [])
-        ]
-        persistent_storage = any(len(mount) == 2 and mount[0] in declared_volumes and mount[1] == storage_path for mount in mounts)
-        require(persistent_storage, f"{label}: a persistent named volume must be mounted at {storage_path}")
+        if service == "api":
+            require(bool(re.fullmatch(r"\$\{DATABASE_URL(?::\?[^}]+)?\}", definition.get("environment", {}).get("DATABASE_URL", ""))), f"{label}: DATABASE_URL must come from the private PostgreSQL service")
+            require(bool(re.fullmatch(r"\$\{BLOCIA_ENCRYPTION_KEY(?::\?[^}]+)?\}", definition.get("environment", {}).get("BLOCIA_ENCRYPTION_KEY", ""))), f"{label}: PostgreSQL deployments must preserve the token encryption key")
+        else:
+            declared_volumes = compose.get("volumes", {})
+            mounts = [
+                (mount.get("source", ""), mount.get("target", "")) if isinstance(mount, dict)
+                else tuple(str(mount).split(":")[:2])
+                for mount in definition.get("volumes", [])
+            ]
+            persistent_storage = any(len(mount) == 2 and mount[0] in declared_volumes and mount[1] == "/app/models" for mount in mounts)
+            require(persistent_storage, f"{label}: a persistent named volume must be mounted at /app/models")
     else:
         require(networks.get("dokploy-network", {}).get("external") == "true", f"{label}: Dokploy routing network must be external")
         require(membership == {"application", "dokploy-network"}, f"{label}: frontend must join the application and routing networks")
@@ -77,6 +80,13 @@ def validate_compose() -> None:
         require("ports" not in services["inference"], f"{label}: inference must remain on the private Docker network")
         require("healthcheck" in services["inference"] or inference_has_healthcheck, f"{label}: inference readiness check is required")
         require(bool(compose.get("volumes")), f"{label}: persistent volumes are required")
+        if label == "Dokploy":
+            require("database" in services, "Dokploy: PostgreSQL must run in its own persistent service")
+            database = services["database"]
+            require("ports" not in database and database.get("expose") == ["5432"], "Dokploy PostgreSQL must stay private")
+            require("healthcheck" in database, "Dokploy PostgreSQL readiness check is required")
+            require("database-data:/var/lib/postgresql/data" in database.get("volumes", []), "Dokploy PostgreSQL needs a persistent data volume")
+            require(any(item.get("condition") == "service_healthy" for item in services["api"].get("depends_on", {}).values()), "Dokploy API must wait for PostgreSQL readiness")
     for service in ("frontend", "api", "inference"):
         image = production["services"][service].get("image", "")
         validate_release_image(image, service, f"all-in-one Dokploy {service}")
@@ -87,6 +97,7 @@ def validate_compose() -> None:
     require(len(separate_networks) == 1, "separate Dokploy resources must share the same external application network name")
     for target in ("api", "inference"):
         require(bool(re.search(rf"^FROM\s+.+\s+AS\s+{target}\s*$", dockerfile, re.I | re.M)), f"backend Dockerfile: missing {target} target")
+    require('"psycopg[binary]>=3.2,<4"' in (ROOT / "back/pyproject.toml").read_text(encoding="utf-8"), "backend: PostgreSQL driver is required")
     frontend = (ROOT / "front/Dockerfile").read_text(encoding="utf-8")
     require("RELEASE_TAG" in frontend and "version.json" in frontend, "frontend container must expose its immutable release version")
 

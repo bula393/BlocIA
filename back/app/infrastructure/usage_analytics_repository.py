@@ -33,7 +33,13 @@ class UsageAnalyticsRepository:
     def __init__(self, database):
         self.database = database
 
+    def _label(self, column):
+        if self.database.is_postgres:
+            return f"({column}::jsonb ->> 'label')"
+        return f"json_extract({column},'$.label')"
+
     def _period_totals(self, mail, now):
+        label = self._label("messages.classification")
         reset_rows = self.database.query(
             "SELECT MAX(reset_at) AS reset_at FROM user_usage_resets WHERE user_mail=? AND reset_at<=?",
             (mail, now),
@@ -51,7 +57,7 @@ class UsageAnalyticsRepository:
             "JOIN conversations ON conversations.id=messages.conversation_id "
             "JOIN chat_turns AS turns ON turns.conversation_id=messages.conversation_id AND turns.request_id=messages.request_id "
             "WHERE conversations.user_mail=? AND messages.role='user' AND turns.state='completed' "
-            "AND turns.completed_at>? AND json_extract(messages.classification,'$.label') IN ('personal_informativa','personal_decision')",
+            f"AND turns.completed_at>? AND {label} IN ('personal_informativa','personal_decision')",
             (mail, cutoff),
         )
         return round(float(rows[0]["seconds"] or 0)), int(personal[0]["questions"] or 0)
@@ -118,17 +124,21 @@ class UsageAnalyticsRepository:
     def dashboard(self, mail, limit=40, offset=0, now=None):
         now = time.time() if now is None else now
         lock = self.current_lock(mail, now)
+        message_label = self._label("messages.classification")
+        question_label = self._label("question.classification")
+        day_expression = ("TO_CHAR(TO_TIMESTAMP(turns.completed_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD')"
+                          if self.database.is_postgres else "strftime('%Y-%m-%d',turns.completed_at,'unixepoch')")
         totals = self.database.query(
             "SELECT COUNT(*) AS total, "
-            "SUM(CASE WHEN json_extract(messages.classification,'$.label') LIKE 'personal_%' THEN 1 ELSE 0 END) AS personal, "
-            "SUM(CASE WHEN json_extract(messages.classification,'$.label') IS NOT NULL THEN 1 ELSE 0 END) AS classified "
+            f"SUM(CASE WHEN {message_label} LIKE 'personal_%' THEN 1 ELSE 0 END) AS personal, "
+            f"SUM(CASE WHEN {message_label} IS NOT NULL THEN 1 ELSE 0 END) AS classified "
             "FROM messages JOIN conversations ON conversations.id=messages.conversation_id "
             "JOIN chat_turns AS turns ON turns.conversation_id=messages.conversation_id AND turns.request_id=messages.request_id "
             "WHERE conversations.user_mail=? AND messages.role='user' AND turns.state='completed'",
             (mail,),
         )[0]
         by_category_rows = self.database.query(
-            "SELECT COALESCE(json_extract(messages.classification,'$.label'),'unclassified') AS label, COUNT(*) AS count "
+            f"SELECT COALESCE({message_label},'unclassified') AS label, COUNT(*) AS count "
             "FROM messages JOIN conversations ON conversations.id=messages.conversation_id "
             "JOIN chat_turns AS turns ON turns.conversation_id=messages.conversation_id AND turns.request_id=messages.request_id "
             "WHERE conversations.user_mail=? AND messages.role='user' AND turns.state='completed' GROUP BY label",
@@ -146,8 +156,8 @@ class UsageAnalyticsRepository:
         today = datetime.fromtimestamp(now, timezone.utc).date()
         week_start = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc).timestamp() - 6 * 86400
         daily = self.database.query(
-            "SELECT strftime('%Y-%m-%d',turns.completed_at,'unixepoch') AS day, COUNT(*) AS count, "
-            "SUM(CASE WHEN json_extract(question.classification,'$.label') LIKE 'personal_%' THEN 1 ELSE 0 END) AS personal "
+            f"SELECT {day_expression} AS day, COUNT(*) AS count, "
+            f"SUM(CASE WHEN {question_label} LIKE 'personal_%' THEN 1 ELSE 0 END) AS personal "
             "FROM chat_turns AS turns JOIN conversations ON conversations.id=turns.conversation_id "
             "JOIN messages AS question ON question.conversation_id=turns.conversation_id AND question.request_id=turns.request_id AND question.role='user' "
             "WHERE conversations.user_mail=? AND turns.state='completed' AND turns.completed_at>=? "

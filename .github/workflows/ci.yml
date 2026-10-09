@@ -18,6 +18,22 @@ jobs:
     name: Backend tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: blocia_test
+          POSTGRES_USER: blocia_test
+          POSTGRES_PASSWORD: ci-only-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U blocia_test -d blocia_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_POSTGRES_URL: postgresql://blocia_test:ci-only-postgres-password@localhost:5432/blocia_test
     defaults:
       run:
         working-directory: back
@@ -101,6 +117,9 @@ jobs:
       ACCESS_TOKEN_SECRET: ci-placeholder-signing-secret-not-for-production-000000000
       BLOCIA_INFERENCE_TOKEN: ci-placeholder-inference-token-not-for-production
       FRONTEND_URL: http://localhost:8080
+      DATABASE_URL: postgresql://blocia:ci-only-postgres-password@database:5432/blocia
+      POSTGRES_PASSWORD: ci-only-postgres-password
+      BLOCIA_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       GHCR_IMAGE_PREFIX: ghcr.io/example/blocia
       RELEASE_TAG: ${{ github.sha }}
     steps:

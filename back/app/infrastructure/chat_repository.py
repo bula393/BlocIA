@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 import hashlib
 import json
-import sqlite3
 import time
 from uuid import uuid4
 
@@ -106,7 +105,9 @@ class ChatRepository:
                 raise TurnConflictError("Ya hay una respuesta en curso. Esperá antes de enviar otra consulta.")
             try:
                 self.database.execute("INSERT INTO chat_turns(conversation_id,request_id,prompt_hash,state,started_at) VALUES (?,?,?,'pending',?) ON CONFLICT(conversation_id,request_id) DO UPDATE SET state='pending',started_at=excluded.started_at,phase='classifying'", (identifier, request_id, prompt_hash, time.time()))
-            except sqlite3.IntegrityError as error:
+            except Exception as error:
+                if not self.database.is_integrity_error(error):
+                    raise
                 raise TurnConflictError("Ya hay una respuesta en curso para esta conversación.") from error
         return True
 
@@ -132,7 +133,8 @@ class ChatRepository:
             for role, content, message_provider, message_model in messages:
                 self.database.execute("INSERT INTO messages(id,conversation_id,request_id,role,content,created_at,classification,provider_id,model_id) VALUES (?,?,?,?,?,?,?,?,?)", (str(uuid4()), identifier, request_id, role, content, timestamp, json.dumps(classification), message_provider, message_model))
             completed_at = time.time()
-            self.database.execute("UPDATE chat_turns SET state='completed',completed_at=?,duration_seconds=MAX(0,?-started_at) WHERE conversation_id=? AND request_id=?", (completed_at, completed_at, identifier, request_id))
+            elapsed = "GREATEST(0,?-started_at)" if self.database.is_postgres else "MAX(0,?-started_at)"
+            self.database.execute(f"UPDATE chat_turns SET state='completed',completed_at=?,duration_seconds={elapsed} WHERE conversation_id=? AND request_id=?", (completed_at, completed_at, identifier, request_id))
             self.database.execute("UPDATE conversations SET title=CASE WHEN title='Nuevo chat' THEN ? ELSE title END,updated_at=? WHERE id=?", (prompt[:70], timestamp, identifier))
 
     def fail(self, identifier, request_id):

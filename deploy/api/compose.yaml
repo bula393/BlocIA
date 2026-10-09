@@ -23,7 +23,7 @@ services:
       BLOCIA_INFERENCE_URL: http://${BLOCIA_SERVICE_NAMESPACE:-blocia-prod}-inference:8001
       BLOCIA_INFERENCE_TOKEN: ${BLOCIA_INFERENCE_TOKEN:?Define BLOCIA_INFERENCE_TOKEN}
       BLOCIA_INFERENCE_TIMEOUT_SECONDS: ${BLOCIA_INFERENCE_TIMEOUT_SECONDS:-300}
-      BLOCIA_DATABASE_PATH: /app/data/blocia.sqlite3
+      DATABASE_URL: ${DATABASE_URL:?Define DATABASE_URL with the private Postgres connection URL}
       BLOCIA_LOCK_MINUTES: ${BLOCIA_LOCK_MINUTES:-1440}
       BLOCIA_PRELOAD_CLASSIFIER: "0"
       BLOCIA_PRELOAD_LOCAL_CHAT: "0"
@@ -32,7 +32,7 @@ services:
       BLOCIA_DEFAULT_OPENROUTER_TOKEN: ${BLOCIA_DEFAULT_OPENROUTER_TOKEN:-}
       BLOCIA_DEFAULT_OPENAI_TOKEN: ${BLOCIA_DEFAULT_OPENAI_TOKEN:-}
       BLOCIA_DEFAULT_ANTHROPIC_TOKEN: ${BLOCIA_DEFAULT_ANTHROPIC_TOKEN:-}
-      BLOCIA_ENCRYPTION_KEY: ${BLOCIA_ENCRYPTION_KEY:-}
+      BLOCIA_ENCRYPTION_KEY: ${BLOCIA_ENCRYPTION_KEY:?Define BLOCIA_ENCRYPTION_KEY}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
@@ -40,8 +40,6 @@ services:
       GOOGLE_REGISTRATION_SECRET: ${GOOGLE_REGISTRATION_SECRET:-}
     expose:
       - "8000"
-    volumes:
-      - api-data:/app/data
     networks:
       application:
         aliases:
@@ -56,10 +54,6 @@ services:
     mem_limit: ${API_MEMORY_LIMIT:-512m}
     pids_limit: 256
     stop_grace_period: 45s
-
-volumes:
-  api-data:
-    name: ${BLOCIA_API_VOLUME_NAME:-${BLOCIA_SERVICE_NAMESPACE:-blocia-prod}-api-data}
 
 networks:
   application:
