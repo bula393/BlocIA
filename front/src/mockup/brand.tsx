@@ -43,6 +43,7 @@ const paths: Record<string, React.ReactNode> = {
   activity: <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
   minus: <><path d="M5 12h14" /></>,
   layers: <><path d="m3 8 9-5 9 5-9 5-9-5ZM3 12l9 5 9-5M3 16l9 5 9-5" /></>,
+  search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 5 5" /></>,
   'arrow-right': <><path d="M4 12h15M13 5l7 7-7 7" /></>,
   'arrow-left': <><path d="M20 12H5M11 5l-7 7 7 7" /></>,
   'arrow-up-right': <><path d="M5 19 19 5M5 5h14v14" /></>,

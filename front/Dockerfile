@@ -11,11 +11,12 @@ RUN npm run build
 RUN node -e 'require("node:fs").writeFileSync("dist/version.json", JSON.stringify({ release: process.env.RELEASE_TAG || "development" }) + "\n")'
 
 FROM ${NGINX_IMAGE} AS runtime
-ENV BLOCIA_API_UPSTREAM=api:8000 \
-    NGINX_ENVSUBST_FILTER=^BLOCIA_API_UPSTREAM$
+ENV PORT=8080 \
+    BLOCIA_API_UPSTREAM=api:8000 \
+    NGINX_ENVSUBST_FILTER=^(BLOCIA_API_UPSTREAM|PORT)$
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1
+    CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/healthz" || exit 1
 STOPSIGNAL SIGQUIT

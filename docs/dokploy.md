@@ -5,17 +5,17 @@ En el proyecto `BloqIa` se usan tres servicios **Application** independientes co
 | Servicio | Función | Puerto del contenedor | Datos persistentes |
 | --- | --- | --- | --- |
 | `database` | PostgreSQL para cuentas, chats, límites y credenciales cifradas | 5432, solo red privada | Volumen administrado por Dokploy |
-| `back` | `ghcr.io/bula393/blocia-api:<SHA>` | 8000, privado | Usa `database`; conserva la clave Fernet en Environment |
-| `front` | `ghcr.io/bula393/blocia-frontend:<SHA>` | 8080, público | Ninguno |
+| `back` | `ghcr.io/bula393/blocia-api:<SHA>` | 60002, público vía HTTPS en `/api` | Usa `database`; conserva la clave Fernet en Environment |
+| `front` | `ghcr.io/bula393/blocia-frontend:<SHA>` | 60001, público vía HTTPS en `/` | Ninguno |
 | `clasificador` | `ghcr.io/bula393/blocia-inference:<SHA>` | 8001, privado | Volumen en `/app/models` |
 
-Configurá únicamente un dominio público para `front`. La base, la API y el clasificador permanecen privados. Dokploy administra la persistencia de PostgreSQL; el clasificador necesita un volumen persistente para sus modelos. Los tags de imagen son inmutables y cambian en cada push aprobado.
+`front` y `back` comparten el host público existente `BloqIA.policloudservices.ipm.edu.ar`: la interfaz se sirve en `/` y la API en `/api`. La URL normalizada es `https://bloqia.policloudservices.ipm.edu.ar`. PostgreSQL y el clasificador permanecen en la red privada. Dokploy administra la persistencia de PostgreSQL; el clasificador necesita un volumen persistente para sus modelos. Los tags de imagen son inmutables y cambian en cada push aprobado.
 
 El código está organizado en `front/src/features/chat/` para el chat y sus componentes; `back/app/bootstrap.py` para montar la API; `back/app/application/` para casos de uso; `back/app/presentation/` para contratos HTTP; `back/app/infrastructure/` para persistencia y transportes; y `back/app/inference_main.py` para la IA independiente.
 
 ## 1. Preparar dominio y servidor
 
-Creá un registro DNS `A` de tu dominio hacia la IP del servidor de Dokploy. El servidor debe permitir que Dokploy atienda HTTP/HTTPS y pueda descargar imágenes desde GHCR y modelos desde Hugging Face. Usá Linux con Docker; la construcción predeterminada es para `linux/amd64`.
+Usá el host `BloqIA.policloudservices.ipm.edu.ar` ya configurado en `back` y comprobá que su DNS resuelva hacia el servidor de Dokploy. El servidor debe permitir que Dokploy atienda HTTP/HTTPS y pueda descargar imágenes desde GHCR y modelos desde Hugging Face. Usá Linux con Docker; la construcción predeterminada es para `linux/amd64`.
 
 Los límites iniciales son 6 GB para inferencia, 512 MB para la API y 128 MB para la interfaz. Reservá memoria adicional para Dokploy y el sistema. Son valores iniciales ajustables en el `.env.example` de cada servicio; el consumo real depende de los modelos y las consultas. No se comprobó el rendimiento en tu servidor.
 
@@ -35,9 +35,9 @@ En cada servicio, completá el proveedor Docker de esta manera:
 | `front` | `ghcr.io/bula393/blocia-frontend:SHA_COMPLETO` | `ghcr.io` |
 | `clasificador` | `ghcr.io/bula393/blocia-inference:SHA_COMPLETO` | `ghcr.io` |
 
-Reemplazá `SHA_COMPLETO` por los 40 caracteres del commit que Actions publicó más recientemente; el resumen de la ejecución y la pestaña **Packages** muestran el tag exacto. Las imágenes son públicas, así que podés dejar vacíos usuario y contraseña del registro. No uses `latest`: cada versión queda identificada y se puede revertir. El workflow actualiza estas imágenes al SHA del push que haya pasado las pruebas. La aplicación `front` debe escuchar en el puerto de contenedor `8080`, `back` en `8000` y `clasificador` en `8001`.
+Reemplazá `SHA_COMPLETO` por los 40 caracteres del commit que Actions publicó más recientemente; el resumen de la ejecución y la pestaña **Packages** muestran el tag exacto. Las imágenes son públicas, así que podés dejar vacíos usuario y contraseña del registro. No uses `latest`: cada versión queda identificada y se puede revertir. El workflow actualiza estas imágenes al SHA del push que haya pasado las pruebas. En estas Applications, configurá `PORT=60001` para `front` y `PORT=60002` para `back`; `clasificador` conserva `8001`. Las imágenes admiten estos puertos por Environment y mantienen `8080`/`8000` como valores predeterminados para la alternativa Compose.
 
-En `clasificador`, agregá un volumen persistente montado en `/app/models`; la descarga inicial del modelo puede demorar. No publiques los puertos `5432`, `8000` ni `8001` hacia Internet. Solo `front` requiere un dominio público.
+En `clasificador`, agregá un volumen persistente montado en `/app/models`; la descarga inicial del modelo puede demorar. `front` y `back` se publican mediante el enrutador HTTPS de Dokploy, sin agregar puertos de host. PostgreSQL (`5432`) y el clasificador (`8001`) quedan privados.
 
 Las imágenes de GitHub se consultan desde [GHCR](https://github.com/bula393?tab=packages). Para las imágenes públicas no hace falta crear credenciales del registro en Dokploy. Si después hacés privados los paquetes, creá un token de GitHub con `read:packages` y configurá un Registry GHCR con ese usuario y token. Actions publica con su `GITHUB_TOKEN` automático. Referencias: [GHCR en Dokploy](https://docs.dokploy.com/docs/core/registry/ghcr) y [permisos del Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
@@ -47,24 +47,33 @@ En la pestaña **Environment** de cada Application, agregá las variables de run
 
 | Application | Variable | Valor |
 | --- | --- | --- |
-| `back` | `FRONTEND_URL` | `https://TU_DOMINIO`, sin barra final |
+| `back` | `PORT` | `60002` |
+| `back` | `FRONTEND_URL` | `https://bloqia.policloudservices.ipm.edu.ar`, sin barra final |
 | `back` | `ACCESS_TOKEN_SECRET` | Secreto aleatorio de al menos 32 caracteres |
 | `back` | `DATABASE_URL` | **Internal Connection URL** que muestra el recurso PostgreSQL de Dokploy |
 | `back` | `BLOCIA_ENCRYPTION_KEY` | Clave Fernet aleatoria; necesaria para cifrar los tokens de proveedores guardados por la app |
 | `back` | `BLOCIA_LOCK_MINUTES` | Minutos de bloqueo deseados; `1440` equivale a un día |
 | `back` | `BLOCIA_INFERENCE_URL` | `http://blocia-clasificador-nrn9qa:8001` |
 | `back` | `BLOCIA_INFERENCE_TOKEN` | Secreto aleatorio compartido con `clasificador` |
-| `front` | `BLOCIA_API_UPSTREAM` | `bloqia-back-b1bgga:8000` |
+| `front` | `PORT` | `60001` |
+| `front` | `BLOCIA_API_UPSTREAM` | `bloqia-back-b1bgga:60002` |
 | `clasificador` | `BLOCIA_INFERENCE_TOKEN` | El mismo valor configurado en `back` |
 | `clasificador` | `BLOCIA_ENABLE_LOCAL_CHAT` | `0` para solo clasificar; `1` habilita Qwen local y requiere más memoria |
 
-Los nombres internos `blocia-clasificador-nrn9qa` y `bloqia-back-b1bgga` aparecen debajo del título de cada Application en Dokploy. Las Applications y el recurso PostgreSQL deben compartir la red privada del entorno para que se resuelvan entre sí. Usá la **Internal Connection URL** que Dokploy muestra; no armes una URL con el host externo. No publiques los puertos `5432`, `8000` ni `8001` al exterior.
+Los nombres internos `blocia-clasificador-nrn9qa` y `bloqia-back-b1bgga` aparecen debajo del título de cada Application en Dokploy. Las Applications y el recurso PostgreSQL deben compartir la red privada del entorno para que se resuelvan entre sí. Usá la **Internal Connection URL** que Dokploy muestra para PostgreSQL; no armes una URL con el host externo. Conservá `BLOCIA_API_UPSTREAM` con el nombre interno del back para el proxy de la interfaz. No agregues puertos de host: el enrutador de Dokploy publica front y back por HTTPS, mientras los puertos `5432` y `8001` permanecen privados.
 
-Generá los secretos en tu equipo, sin pegarlos en el chat. `ACCESS_TOKEN_SECRET` y `BLOCIA_INFERENCE_TOKEN` deben ser valores distintos; el token de inferencia sí se comparte entre `back` y `clasificador`. Para `BLOCIA_ENCRYPTION_KEY`, ejecutá `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` y guardá una copia segura: si se pierde o cambia, la app no podrá descifrar los tokens de proveedores ya almacenados. Las credenciales `BLOCIA_DEFAULT_*_TOKEN` son opcionales. Google Login también es opcional y requiere `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y registrar `https://TU_DOMINIO/api/auth/google/callback` como URL de retorno.
+Generá los secretos en tu equipo, sin pegarlos en el chat. `ACCESS_TOKEN_SECRET` y `BLOCIA_INFERENCE_TOKEN` deben ser valores distintos; el token de inferencia sí se comparte entre `back` y `clasificador`. Para `BLOCIA_ENCRYPTION_KEY`, ejecutá `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` y guardá una copia segura: si se pierde o cambia, la app no podrá descifrar los tokens de proveedores ya almacenados. Las credenciales `BLOCIA_DEFAULT_*_TOKEN` son opcionales. Google Login también es opcional y requiere `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y registrar `https://bloqia.policloudservices.ipm.edu.ar/api/auth/google/callback` como URL de retorno.
 
-## 4. Configurar el dominio público
+## 4. Configurar las rutas públicas de front y back
 
-En la Application `front`, abrí **Domains → Add Domain** y completá el host público que tengas configurado en DNS. Apuntá un registro DNS `A` a la IP del servidor Dokploy. Configurá el puerto de contenedor `8080`, el path `/` y HTTPS con Let's Encrypt. No agregues dominios públicos a `back` ni `clasificador`. Revisá y guardá el dominio en Dokploy según su [documentación oficial de Applications](https://docs.dokploy.com/docs/core/applications).
+En **Domains** de cada Application, usá el mismo host existente en `back`: `BloqIA.policloudservices.ipm.edu.ar`. Configurá estas dos rutas:
+
+| Application | Host | Path | Internal Path | Strip Path | Container Port | HTTPS |
+| --- | --- | --- | --- | --- | --- | --- |
+| `front` | `BloqIA.policloudservices.ipm.edu.ar` | `/` | `/` | Desactivado | `60001` | Activado, Let's Encrypt |
+| `back` | `BloqIA.policloudservices.ipm.edu.ar` | `/api` | `/` | Activado | `60002` | Activado, Let's Encrypt |
+
+La ruta `/api` del back tiene prioridad sobre la ruta `/` del front. `Strip Path` elimina el prefijo `/api` antes de enviar la solicitud a la API: `/api/health` llega como `/health` al contenedor. Los puertos de contenedor `60001` y `60002` cumplen el requisito de usar puertos superiores a `60000`; el acceso público sigue siendo HTTPS sin indicar puerto en la URL. No agregues dominios ni puertos externos a PostgreSQL o `clasificador`, ni puertos de host adicionales a front o back. Revisá y guardá las rutas en Dokploy según su [documentación oficial de Applications](https://docs.dokploy.com/docs/core/applications).
 
 ## 5. Configurar GitHub Actions para desplegar las Applications
 

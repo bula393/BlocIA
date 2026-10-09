@@ -5,6 +5,7 @@ import { getUsageLimits } from '../../api/usage';
 import { listAvailableModels, listTechnicalProviders } from '../../api/technicalProfile';
 
 import { providerLabel } from './helpers';
+import { DEFAULT_CHAT_MODEL, isDefaultChatModel, readModelPreference, saveModelPreference } from './modelPreference';
 import type { ChatModelOption, MessageRequest, PendingConfirmation } from './types';
 
 export function useChatController() {
@@ -24,8 +25,7 @@ export function useChatController() {
   const [error, setError] = useState('');
   const [historyError, setHistoryError] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState('');
-  const manualModelSelection = useRef(false);
+  const [modelPreference, setModelPreference] = useState<ChatModelOption | null>(readModelPreference);
   const inFlight = useRef(false);
   const failedRequest = useRef<MessageRequest | null>(null);
   const end = useRef<HTMLDivElement>(null);
@@ -64,8 +64,16 @@ export function useChatController() {
     ...configuredModelOptions,
     ...(status?.freeModels ?? []).map((model) => ({ ...model, key: `${model.providerId}:${model.modelId}`, providerName: providerLabel(model.providerId, model.providerName) }))
   ];
-  const selectedModelOption = modelOptions.find((model) => model.key === selectedModel);
+  const selectedModelOption = modelPreference
+    ? modelOptions.find((model) => model.key === modelPreference.key || (isDefaultChatModel(modelPreference) && isDefaultChatModel(model)))
+    : modelOptions.find((model) => model.key === DEFAULT_CHAT_MODEL.key) ?? modelOptions.find(isDefaultChatModel);
+  const selectedModelDisplay = selectedModelOption ?? modelPreference ?? DEFAULT_CHAT_MODEL;
+  const selectedModel = selectedModelDisplay.key;
+  const selectedModelAvailable = Boolean(selectedModelOption);
   const modelsLoading = !status || providerQuery.isLoading || modelCatalogQueries.some((query) => query.isLoading);
+  const modelSelectionMessage = !modelsLoading && !selectedModelAvailable
+    ? `${selectedModelDisplay.displayName} de ${selectedModelDisplay.providerName} ${modelPreference ? 'no está disponible' : 'es tu modelo predeterminado, pero no está disponible'}. Revisá la conexión del proveedor o elegí otro modelo para responder.`
+    : '';
   const providerTokenAvailable = configuredProviders.length > 0;
   const failedCatalogs = configuredProviders.flatMap((provider, index) => {
     const query = modelCatalogQueries[index];
@@ -85,18 +93,6 @@ export function useChatController() {
   useEffect(() => {
     if (confirmation && !sending) confirmButton.current?.focus();
   }, [confirmation, sending]);
-
-  useEffect(() => {
-    if (!modelOptions.length) {
-      if (selectedModel) setSelectedModel('');
-    } else if (manualModelSelection.current && modelOptions.some((model) => model.key === selectedModel)) {
-      return;
-    } else {
-      manualModelSelection.current = false;
-      const preferred = configuredModelOptions[0] ?? modelOptions[0];
-      if (selectedModel !== preferred.key) setSelectedModel(preferred.key);
-    }
-  }, [configuredModelOptions, modelOptions, selectedModel]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -198,7 +194,7 @@ export function useChatController() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     const prompt = draft.trim();
-    if (!prompt || inFlight.current || confirmation || !status?.ready || loading || modelsLoading || usageLock?.blocked) return;
+    if (!prompt || inFlight.current || confirmation || !status?.ready || loading || modelsLoading || !selectedModelOption || usageLock?.blocked) return;
     inFlight.current = true;
     setSending(true);
     setSendPhase('classifying');
@@ -214,7 +210,7 @@ export function useChatController() {
         setActiveId(created.id);
       }
       const previous = failedRequest.current;
-      const currentModel = selectedModelOption ? { providerId: selectedModelOption.providerId, modelId: selectedModelOption.modelId, displayName: selectedModelOption.displayName } : undefined;
+      const currentModel = { providerId: selectedModelOption.providerId, modelId: selectedModelOption.modelId, displayName: selectedModelOption.displayName };
       const request = previous?.prompt === prompt && previous.conversationId === conversationId && previous.model?.providerId === currentModel?.providerId && previous.model?.modelId === currentModel?.modelId
         ? previous
         : { id: crypto.randomUUID(), prompt, conversationId, model: currentModel };
@@ -276,8 +272,10 @@ export function useChatController() {
   }
 
   function selectModel(key: string) {
-    manualModelSelection.current = true;
-    setSelectedModel(key);
+    const model = modelOptions.find((option) => option.key === key);
+    if (!model) return;
+    setModelPreference(model);
+    saveModelPreference(model);
   }
 
   return {
@@ -285,6 +283,7 @@ export function useChatController() {
     sending, loading, historyLoading, historyOpen, error, historyError, deleting, selectedModel,
     limit, usageLock, personalLimit, personalRemaining, personalUsed, lockDuration, interactionPending,
     blockedReasons, modelOptions, modelsLoading, providerTokenAvailable, failedCatalogs,
+    selectedModelDisplay, selectedModelAvailable, modelSelectionMessage,
     providerQueryError: providerQuery.isError, pendingModel: failedRequest.current?.model,
     textarea, confirmButton, end, setDraft, setHistoryOpen, selectModel, selectConversation,
     submit, confirmPersonalResponse, cancelPersonalResponse, removeConversation,

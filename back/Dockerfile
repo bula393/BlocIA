@@ -19,14 +19,15 @@ COPY app ./app
 COPY config ./config
 COPY ml/artifacts ./ml/artifacts
 RUN python -m pip install --no-cache-dir .
-ENV BLOCIA_DATABASE_PATH=/app/data/blocia.sqlite3 \
+ENV PORT=8000 \
+    BLOCIA_DATABASE_PATH=/app/data/blocia.sqlite3 \
     BLOCIA_PRELOAD_CLASSIFIER=0 \
     BLOCIA_PRELOAD_LOCAL_CHAT=0
 USER 10001:10001
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD ["python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health', timeout=4).close()"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-graceful-shutdown", "30"]
+    CMD ["python", "-c", "import os; from urllib.request import urlopen; urlopen('http://127.0.0.1:' + os.environ.get('PORT', '8000') + '/health', timeout=4).close()"]
+CMD ["/bin/sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port \"$PORT\" --workers 1 --proxy-headers --forwarded-allow-ips '*' --timeout-graceful-shutdown 30"]
 
 # CPU-only inference keeps Torch, encoder weights and generation out of the API.
 FROM base AS inference

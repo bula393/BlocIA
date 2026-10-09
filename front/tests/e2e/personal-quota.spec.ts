@@ -43,6 +43,8 @@ test('personal response asks after classification and shows the final allowance 
 
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto('/nuevo-chat');
+  await page.getByRole('combobox', { name: 'Modelo de respuesta', exact: true }).click();
+  await page.getByRole('option', { name: /Qwen local/ }).click();
   const input = page.getByLabel('Mensaje para BloqIA');
   const send = page.getByRole('button', { name: 'Enviar mensaje', exact: true });
   await input.fill('¿Qué factores de mi carrera me ayudan a aprender?');

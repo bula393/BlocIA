@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
 import { createConversation, getChatStatus, getMessageProgress, listConversations, sendMessage, type ConversationDetail, type MessageResult, type PersonalResponseConfirmation, type UsageLock } from '../../src/api/chat';
 import { getUsageLimits } from '../../src/api/usage';
-import { listTechnicalProviders } from '../../src/api/technicalProfile';
+import { listAvailableModels, listTechnicalProviders } from '../../src/api/technicalProfile';
 import { NuevoChat } from '../../src/pages/NuevoChat';
 
 vi.mock('../../src/api/chat', () => ({
@@ -36,9 +36,11 @@ function renderChat() {
 
 async function submitPersonalPrompt() {
   const input = screen.getByLabelText('Mensaje para BloqIA');
-  await waitFor(() => expect(screen.getByLabelText('Modelo de respuesta')).toHaveValue('local:qwen3-local'));
+  const modelPicker = screen.getByRole('combobox', { name: 'Modelo de respuesta' });
+  await waitFor(() => expect(modelPicker).toBeEnabled());
+  fireEvent.click(modelPicker);
+  fireEvent.click(await screen.findByRole('option', { name: /Otro modelo local/ }));
   await act(async () => {
-    fireEvent.change(screen.getByLabelText('Modelo de respuesta'), { target: { value: 'local:other-local' } });
     fireEvent.change(input, { target: { value: prompt } });
     fireEvent.click(screen.getByRole('button', { name: 'Enviar mensaje' }));
   });
@@ -59,7 +61,29 @@ beforeEach(() => {
   vi.mocked(createConversation).mockResolvedValue(conversation);
   vi.mocked(getMessageProgress).mockResolvedValue({ phase: 'classifying', state: 'completed' });
   vi.mocked(listTechnicalProviders).mockResolvedValue({ providers: [] });
+  vi.mocked(listAvailableModels).mockReset();
   vi.mocked(getUsageLimits).mockResolvedValue(initialUsage);
+});
+
+test('prefers Groq gpt-oss-20b when available and filters the searchable model list', async () => {
+  vi.mocked(listTechnicalProviders).mockResolvedValue({ providers: [{
+    providerId: 'groq', name: 'Groq', status: 'available',
+    tokenStatus: { providerId: 'groq', status: 'configured' }, models: [],
+  }] });
+  vi.mocked(listAvailableModels).mockResolvedValue({ providerId: 'groq', source: 'token', message: 'Listo', models: [
+    { modelId: 'open/gpt-oss-20b', displayName: 'open/gpt-oss-20b', availabilityStatus: 'available', capabilities: ['chat'] },
+    { modelId: 'llama-3.3-70b-versatile', displayName: 'Llama 3.3 70B', availabilityStatus: 'available', capabilities: ['chat'] },
+  ] });
+
+  renderChat();
+  const modelPicker = await screen.findByRole('combobox', { name: 'Modelo de respuesta' });
+  await waitFor(() => expect(modelPicker).toHaveTextContent('open/gpt-oss-20b'));
+  expect(modelPicker).toHaveTextContent('Groq');
+
+  fireEvent.click(modelPicker);
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar un modelo' }), { target: { value: 'gpt-oss' } });
+  expect(await screen.findByRole('option', { name: /open\/gpt-oss-20b/ })).toBeInTheDocument();
+  expect(screen.queryByRole('option', { name: /Llama 3.3 70B/ })).not.toBeInTheDocument();
 });
 
 test('asks only after classification, then reuses the prompt, model and request identifier on acceptance', async () => {
@@ -80,7 +104,7 @@ test('asks only after classification, then reuses the prompt, model and request 
   expect(composer?.lastElementChild).toBe(screen.getByLabelText('Cupo de respuestas personales'));
   expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
   expect(screen.getByLabelText('Mensaje para BloqIA')).toBeDisabled();
-  expect(screen.getByLabelText('Modelo de respuesta')).toBeDisabled();
+  expect(screen.getByRole('combobox', { name: 'Modelo de respuesta' })).toBeDisabled();
   screen.getAllByRole('button', { name: 'Nuevo chat', exact: true }).forEach((button) => expect(button).toBeDisabled());
   expect(screen.queryByRole('article', { name: 'Respuesta de BloqIA' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Usar 1 respuesta' }));
