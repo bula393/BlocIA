@@ -49,7 +49,16 @@ class Repository:
     def _save(self, table, keys, values, item):
         columns = ",".join([*keys, "payload"])
         placeholders = ",".join("?" for _ in range(len(keys) + 1))
-        self.database.execute(f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) ON CONFLICT DO UPDATE SET payload=excluded.payload", (*values, serialize(item)))
+        conflict_columns = {
+            "users": ("mail",),
+            "credentials": ("user_mail",),
+            "external_links": ("provider", "external_subject"),
+            "providers": ("provider_id",),
+            "models": ("provider_id", "model_id"),
+            "provider_tokens": ("user_mail", "provider_id"),
+        }[table]
+        target = ",".join(conflict_columns)
+        self.database.execute(f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) ON CONFLICT ({target}) DO UPDATE SET payload=excluded.payload", (*values, serialize(item)))
         return item
 
 
@@ -126,7 +135,7 @@ class TokenRepository(Repository):
 
     def save_secret(self, user_mail, provider_id, raw_token):
         encrypted = self._cipher().encrypt(raw_token.encode())
-        self.database.execute("INSERT INTO token_secrets(user_mail,provider_id,ciphertext) VALUES (?,?,?) ON CONFLICT DO UPDATE SET ciphertext=excluded.ciphertext", (user_mail, provider_id, encrypted))
+        self.database.execute("INSERT INTO token_secrets(user_mail,provider_id,ciphertext) VALUES (?,?,?) ON CONFLICT(user_mail,provider_id) DO UPDATE SET ciphertext=excluded.ciphertext", (user_mail, provider_id, encrypted))
 
     def get_secret(self, user_mail, provider_id):
         rows = self.database.query("SELECT ciphertext FROM token_secrets WHERE user_mail=? AND provider_id=?", (user_mail, provider_id))
