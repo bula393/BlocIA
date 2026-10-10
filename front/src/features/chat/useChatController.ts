@@ -292,6 +292,7 @@ export function useChatController() {
     providerQueryError: providerQuery.isError, pendingModel: failedRequest.current?.model,
     textarea, confirmButton, end, setDraft, setHistoryOpen, selectModel, selectConversation,
     submit, confirmPersonalResponse, cancelPersonalResponse, removeConversation,
+    dismissError: () => setError(''), dismissHistoryError: () => setHistoryError(''),
   };
 }
 

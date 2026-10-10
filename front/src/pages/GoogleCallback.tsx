@@ -1,3 +1,4 @@
+import { Notice } from '../components/Notice';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { completeGoogleRegistration, consumeGoogleSession } from '../api/auth';
 import { AuthLayout } from '../components/auth/AuthLayout';
@@ -68,14 +69,14 @@ export function GoogleCallback() {
         <p className="provider-eyebrow">ACCESO CON GOOGLE</p>
         <h1>{pending ? 'Completá tu perfil' : error ? 'No se pudo completar el acceso' : 'Conectando con Google'}</h1>
         {loading && <p className="bloq-reading">Estamos verificando tu cuenta.</p>}
-        {error && !pending && <><p className="bloq-error" role="alert">{error}</p><a className="bloq-button" data-primary="true" href="/login">Volver al acceso</a></>}
+        {error && !pending && <><Notice key={error} className="bloq-error" role="alert">{error}</Notice><a className="bloq-button" data-primary="true" href="/login">Volver al acceso</a></>}
       </section>
       {pending && (
         <form className="bloq-form auth-form" onSubmit={submit} aria-busy={pendingSubmit}>
           <p className="bloq-status-line">Usaremos {String(pending.prefilledFields.mail ?? 'tu correo de Google')} para esta cuenta.</p>
           {pending.missingFields.includes('age') && <label>Edad<input type="number" min={1} value={age} onChange={(event) => setAge(Number(event.target.value))} required disabled={pendingSubmit} /></label>}
           {pending.missingFields.includes('profession') && <label>Profesión<input value={profession} onChange={(event) => setProfession(event.target.value)} required disabled={pendingSubmit} /></label>}
-          {error && <p className="bloq-error" role="alert">{error}</p>}
+          {error && <Notice key={error} className="bloq-error" role="alert">{error}</Notice>}
           <button type="submit" data-primary="true" disabled={pendingSubmit}>{pendingSubmit ? 'Completando perfil…' : 'Completar perfil'}</button>
         </form>
       )}

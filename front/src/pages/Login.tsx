@@ -1,3 +1,4 @@
+import { Notice } from '../components/Notice';
 import { FormEvent, useEffect, useState } from 'react';
 import { AuthLayout } from '../components/auth/AuthLayout';
 import { PasswordField } from '../components/auth/PasswordField';
@@ -36,8 +37,8 @@ export function Login() {
       <PasswordField value={password} onChange={setPassword} autoComplete="current-password" />
       <button type="submit" data-primary="true" disabled={login.isPending}>{login.isPending ? 'Ingresando…' : 'Iniciar sesión'}<Icon name="arrow" size={17} /></button>
     </form>
-    {login.isError && <p className="bloq-error auth-feedback" role="alert">{authErrorMessage(login.error, 'login')}</p>}
-    {login.data && <p className="bloq-success auth-feedback" role="status">Sesión iniciada para {login.data.user.mail}</p>}
+    {login.isError && <Notice key={login.submittedAt} className="bloq-error auth-feedback" role="alert">{authErrorMessage(login.error, 'login')}</Notice>}
+    {login.data && <Notice key={login.submittedAt} className="bloq-success auth-feedback" role="status">Sesión iniciada para {login.data.user.mail}</Notice>}
     <p className="auth-secondary"><span>¿Todavía no tenés cuenta?</span><a href="/register">Crear cuenta</a></p>
   </AuthLayout>;
 }

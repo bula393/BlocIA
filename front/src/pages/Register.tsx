@@ -1,3 +1,4 @@
+import { Notice } from '../components/Notice';
 import { FormEvent, useState } from 'react';
 import { ProfessionField } from '../components/auth/ProfessionField';
 import { AuthLayout } from '../components/auth/AuthLayout';
@@ -44,8 +45,8 @@ export function Register() {
       </div>
       <button type="submit" data-primary="true" disabled={register.isPending}>{register.isPending ? 'Creando cuenta…' : 'Crear cuenta'}<Icon name="arrow" size={17} /></button>
     </form>
-    {register.isError && <p className="bloq-error auth-feedback" role="alert">{authErrorMessage(register.error, 'register')}</p>}
-    {register.data && <p className="bloq-success auth-feedback" role="status">Cuenta creada para {register.data.user.mail}</p>}
+    {register.isError && <Notice key={register.submittedAt} className="bloq-error auth-feedback" role="alert">{authErrorMessage(register.error, 'register')}</Notice>}
+    {register.data && <Notice key={register.submittedAt} className="bloq-success auth-feedback" role="status">Cuenta creada para {register.data.user.mail}</Notice>}
     <p className="auth-secondary"><span>¿Ya tenés cuenta?</span><a href="/login">Iniciar sesión</a></p>
   </AuthLayout>;
 }

@@ -1,3 +1,4 @@
+import { Notice } from '../components/Notice';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getUsageDashboard, type UsageDashboard } from '../api/usage';
@@ -76,7 +77,7 @@ export function Actividad() {
         <button className="usage-refresh" type="button" onClick={refresh} disabled={dashboard.isFetching}><Icon name="refresh" size={16} />{dashboard.isFetching ? 'Actualizando…' : 'Actualizar'}</button>
       </header>
       {dashboard.isLoading && <p role="status" className="usage-state">Cargando tu actividad…</p>}
-      {dashboard.isError && <div className="usage-error" role="alert"><p>No se pudo cargar el tablero de actividad.</p><button type="button" onClick={() => void dashboard.refetch()}>Intentar de nuevo</button></div>}
+      {dashboard.isError && <Notice key={dashboard.errorUpdatedAt} className="usage-error"><p>No se pudo cargar el tablero de actividad.</p><button type="button" onClick={() => void dashboard.refetch()}>Intentar de nuevo</button></Notice>}
       {data && <>
         {data.limits.blocked && <section className="usage-lock-banner" role="status">
           <span className="usage-lock-symbol"><Icon name="lock" size={21} /></span>

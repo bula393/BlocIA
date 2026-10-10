@@ -87,7 +87,15 @@ for (const width of [320, 390]) {
     await page.goto('/nuevo-chat');
     await expect(page.locator('.chat-mobile-welcome')).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Modelo de respuesta' })).toBeEnabled();
+    await expect(page.locator('.chat-model-trigger-copy')).toBeHidden();
+    await expect(page.locator('.chat-footnote')).toBeHidden();
+    const composer = await page.locator('.chat-composer').boundingBox();
+    expect(composer!.height).toBeLessThan(180);
     await capture(page, `chat-${width}`);
+    await page.getByRole('button', { name: 'Información del chat' }).click();
+    await expect(page.getByRole('dialog', { name: 'Información del chat' })).toContainText('GPT OSS 20B');
+    await expect(page.getByRole('dialog')).toContainText('antes de enviarla al modelo');
+    await page.getByRole('button', { name: 'Cerrar panel' }).click();
     await page.getByRole('combobox', { name: 'Modelo de respuesta' }).click();
     await expect(page.getByRole('dialog', { name: 'Elegí un modelo' })).toBeVisible();
     await page.getByRole('searchbox', { name: 'Buscar un modelo' }).fill('Qwen');
@@ -180,4 +188,23 @@ test('desktop keeps its sidebar and inline controls', async ({ page }) => {
   await capture(page, 'desktop-chat');
   await page.goto('/');
   await capture(page, 'desktop-landing');
+});
+
+test('chat errors can be dismissed and reappear after another failed attempt', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fixtures(page);
+  await page.route('**/api/chat/conversations/*/messages', route => route.fulfill({ status: 503, json: { message: 'No pudimos generar la respuesta. Intentá nuevamente.' } }));
+  await page.goto('/nuevo-chat');
+  await expect(page.getByRole('combobox', { name: 'Modelo de respuesta' })).toBeEnabled();
+  await page.getByLabel('Mensaje para BloqIA').fill('¿Qué es una API?');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await page.getByRole('button', { name: 'Enviar mensaje' }).click();
+    const notice = page.getByRole('alert').filter({ hasText: 'No pudimos generar' });
+    await expect(notice).toBeVisible();
+    await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
+    await capture(page, `dismissible-error-${attempt}`);
+    await notice.getByRole('button', { name: 'Cerrar aviso' }).click();
+    await expect(notice).toHaveCount(0);
+    await expect(page.getByLabel('Mensaje para BloqIA')).toHaveValue('¿Qué es una API?');
+  }
 });

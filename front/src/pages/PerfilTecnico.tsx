@@ -1,3 +1,4 @@
+import { Notice } from '../components/Notice';
 import { useState } from 'react';
 import { MobileSheet } from '../components/mobile/MobileSheet';
 import { useMobileViewport } from '../components/mobile/useMobileViewport';
@@ -102,7 +103,7 @@ function ProviderSection({ provider, token, setToken, save, remove, emailVerifie
     </div>
     <div className="model-catalog__header"><h3>Modelos del proveedor</h3><button type="button" className="model-refresh" onClick={() => void catalog.refetch()} disabled={catalog.isFetching}>Actualizar catálogo</button></div>
     {catalog.isFetching && <p role="status">Cargando modelos...</p>}
-    {catalog.isError && <p className="bloq-error">{catalogError}</p>}
+    {catalog.isError && <Notice key={catalog.errorUpdatedAt} className="bloq-error">{catalogError}</Notice>}
     {catalog.data && <p className="model-catalog__note" data-state={catalog.data.source === 'token' || catalog.data.source === 'default' ? 'safe' : 'attention'}>{catalog.data.message}</p>}
     {displayedModels.length > 0 && <ModelCatalog provider={provider} models={displayedModels} />}
     <label className="provider-token-field"><span>Clave API de {providerLabel(provider)}</span><input aria-label={`Clave API ${providerLabel(provider)}`} value={token} onChange={(event) => setToken(event.target.value)} placeholder="Pegá tu clave API personal" type="password" autoComplete="off" spellCheck={false} /></label>
@@ -136,9 +137,9 @@ export function PerfilTecnico() {
     <p className="provider-free-disclaimer">Los cupos y modelos pueden cambiar. Consultá las condiciones actuales de cada proveedor antes de enviar peticiones.</p>
     <EmailVerification verification={verification} requestVerification={requestVerification} confirmVerification={confirmVerification} />
     {providers.isLoading && <p>Cargando proveedores...</p>}
-    {providers.isError && <p className="bloq-error">No se pudieron cargar los proveedores.</p>}
+    {providers.isError && <Notice key={providers.errorUpdatedAt} className="bloq-error">No se pudieron cargar los proveedores.</Notice>}
     {orderedProviders.map((provider) => <ProviderSection key={provider.providerId} provider={provider} token={tokenByProvider[provider.providerId] ?? ''} setToken={(value) => setTokenByProvider((current) => ({ ...current, [provider.providerId]: value }))} save={save} remove={remove} emailVerified={Boolean(verification.data?.verified)} />)}
-    {save.isError && <p className="bloq-error" role="alert">{save.error instanceof Error ? save.error.message : 'No se pudo guardar la clave. Volvé a intentarlo.'}</p>}
-    {save.isSuccess && <p className="bloq-success" role="status">Clave guardada. El catálogo mostrará los modelos disponibles para esta credencial.</p>}
+    {save.isError && <Notice key={save.submittedAt} className="bloq-error" role="alert">{save.error instanceof Error ? save.error.message : 'No se pudo guardar la clave. Volvé a intentarlo.'}</Notice>}
+    {save.isSuccess && <Notice key={save.submittedAt} className="bloq-success" role="status">Clave guardada. El catálogo mostrará los modelos disponibles para esta credencial.</Notice>}
   </ChasisBloqIA>;
 }

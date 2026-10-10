@@ -4,6 +4,7 @@ import type { ChatModelOption } from '../types';
 import { Icon } from '../../../mockup/brand';
 import { MobileSheet } from '../../../components/mobile/MobileSheet';
 import { useMobileViewport } from '../../../components/mobile/useMobileViewport';
+import { Notice } from '../../../components/Notice';
 
 export function ChatModelPicker({ chat }: { chat: ChatController }) {
   const {
@@ -131,6 +132,7 @@ export function ChatModelPicker({ chat }: { chat: ChatController }) {
       className="chat-model-trigger"
       role="combobox"
       aria-label="Modelo de respuesta"
+      title={`Cambiar modelo: ${selectedModelDisplay.displayName} · ${selectedModelDisplay.providerName}`}
       aria-labelledby={`${pickerId}-label`}
       aria-haspopup={mobile ? 'dialog' : 'listbox'}
       aria-expanded={open}
@@ -156,8 +158,9 @@ export function ChatModelPicker({ chat }: { chat: ChatController }) {
 
     {mobile ? <MobileSheet open={open} title="Elegí un modelo" onClose={() => { setOpen(false); setQuery(''); }}><p>Usá un modelo disponible o uno de tus proveedores conectados.</p>{options}<a className="mobile-sheet-secondary" href="/perfil-tecnico">Administrar conexiones<Icon name="arrow" size={17} /></a></MobileSheet> : open && options}
 
-    {modelSelectionMessage && <small id={`${pickerId}-selection-message`} className="chat-model-message" role="status" aria-live="polite">{modelSelectionMessage}</small>}
-    {modelOptions.length === 0 && !modelSelectionMessage && <small className="chat-model-message">{modelsLoading ? 'Buscando modelos…' : providerQueryError ? 'No se pudieron cargar tus proveedores.' : providerTokenAvailable ? 'No hay modelos disponibles para las claves conectadas. Revisá tu Perfil técnico.' : <>Conectá un proveedor desde <a href="/perfil-tecnico">Perfil técnico</a> para generar respuestas.</>}</small>}
-    {failedCatalogs.length > 0 && <small className="chat-model-message bloq-error">No se pudieron cargar modelos. {failedCatalogs.join('; ')} Revisá la conexión del proveedor o elegí otro modelo disponible.</small>}
+    {(modelSelectionMessage || modelOptions.length === 0 || failedCatalogs.length > 0) && <Notice key={`${modelSelectionMessage}-${modelsLoading}-${providerQueryError}-${failedCatalogs.join(';')}`} id={`${pickerId}-selection-message`} className="chat-model-message" role="status">
+      {modelSelectionMessage || (modelOptions.length === 0 ? modelsLoading ? 'Buscando modelos…' : providerQueryError ? 'No se pudieron cargar tus proveedores.' : providerTokenAvailable ? 'No hay modelos disponibles para las claves conectadas. Revisá tu Perfil técnico.' : <>Conectá un proveedor desde <a href="/perfil-tecnico">Perfil técnico</a> para generar respuestas.</> : null)}
+      {failedCatalogs.length > 0 && <> No se pudieron cargar modelos. {failedCatalogs.join('; ')} Revisá la conexión del proveedor o elegí otro modelo disponible.</>}
+    </Notice>}
   </div>;
 }

@@ -1,3 +1,4 @@
+import { Notice } from '../../../components/Notice';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { usePerfilTecnico } from '../usePerfilTecnico';
 import { Icon } from '../../../mockup/brand';
@@ -57,7 +58,7 @@ export function EmailVerification({ verification, requestVerification, confirmVe
       <h2 id="email-verification-title">{status?.verified ? 'Correo verificado' : 'Verificá tu correo para conectar una clave'}</h2>
     </div>
     {verification.isLoading && <p role="status">Comprobando la verificación de tu correo…</p>}
-    {verification.isError && <div className="technical-email-verification__error"><p className="bloq-error" role="alert">{verification.error instanceof Error ? verification.error.message : 'No pudimos comprobar tu correo. Volvé a intentarlo.'}</p><button type="button" onClick={() => void verification.refetch()} disabled={verification.isFetching}>Volver a comprobar</button></div>}
+    {verification.isError && <div className="technical-email-verification__error"><Notice key={verification.errorUpdatedAt} className="bloq-error" role="alert">{verification.error instanceof Error ? verification.error.message : 'No pudimos comprobar tu correo. Volvé a intentarlo.'}</Notice><button type="button" onClick={() => void verification.refetch()} disabled={verification.isFetching}>Volver a comprobar</button></div>}
     {status && (status.verified ? <p role="status"><strong className="technical-email-address">{status.email}</strong> ya está verificado. Podés guardar o cambiar tus claves personales.</p> : <>
       <p>{expiresRemaining !== null ? 'Enviamos un código a ' : 'Enviaremos un código a '}<strong className="technical-email-address">{status.email}</strong> para confirmar que el correo es tuyo. Los tokens del proyecto siguen disponibles.</p>
       <div className="technical-email-verification__actions">
@@ -74,8 +75,8 @@ export function EmailVerification({ verification, requestVerification, confirmVe
         </div>
         <small id="email-verification-help">{expiresRemaining > 0 ? <>Ingresá el código recibido. Vence en <span className="technical-email-countdown">{remainingTime(expiresRemaining)}</span>. Revisá también el correo no deseado.</> : 'El código venció. Pedí uno nuevo para continuar.'}</small>
       </form>}
-      {confirmError && <p id="email-verification-error" className="bloq-error" role="alert">{confirmError}</p>}
-      {requestError && <p className="bloq-error" role="alert">{requestError}</p>}
+      {confirmError && <Notice key={confirmVerification.submittedAt} id="email-verification-error" className="bloq-error" role="alert">{confirmError}</Notice>}
+      {requestError && <Notice key={requestVerification.submittedAt} className="bloq-error" role="alert">{requestError}</Notice>}
     </>)}
   </section>;
 }

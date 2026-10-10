@@ -119,6 +119,7 @@
 .chat-send:disabled { opacity: .4; cursor: not-allowed; }
 .chat-footnote { max-width: 72ch; text-align: left; font-size: 12px; line-height: 1.5; margin: 10px auto 0; color: var(--color-gris); }
 .chat-error { font-size: 13px; margin: 0 0 12px; }
+.chat-composer-info, .chat-quota-compact { display: none; }
 
 @media (max-width: 1023px) {
   .chat-layout { grid-template-columns: 200px minmax(0, 1fr); }

@@ -1,3 +1,4 @@
+import { Notice } from '../../../components/Notice';
 import { useState } from 'react';
 import type { ChatController } from '../useChatController';
 import { Icon } from '../../../mockup/brand';
@@ -23,7 +24,7 @@ export function ChatHistory({ chat }: { chat: ChatController }) {
             <button type="button" className="chat-delete" aria-label={`Eliminar ${item.title}`} onClick={() => { if (mobile) setDeleteId(item.id); else void removeConversation(item.id); }} disabled={interactionPending || deleting !== null}><Icon name="trash" size={17} /></button>
           </div>)}
           {mobile && query.trim() && !visibleConversations.length && !historyLoading && <p role="status">No encontramos ese chat. Probá con otra palabra.</p>}
-          {historyError && <p className="bloq-error" role="alert">{historyError}</p>}
+          {historyError && <Notice key={historyError} onDismiss={chat.dismissHistoryError} className="bloq-error" role="alert">{historyError}</Notice>}
         </div>
         <div className="chat-local-note"><div><strong>En tu equipo</strong><small>{status ? status.ready ? 'Clasificación local lista' : 'Clasificador local no disponible' : 'Conectando con el clasificador'}</small></div></div>
       </aside>

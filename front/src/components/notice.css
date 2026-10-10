@@ -1,0 +1,5 @@
+.bloq-notice.bloq-notice { position: relative; min-height: 44px; padding: 12px 48px 12px 12px; border-radius: 8px; }
+.bloq-notice-content { min-width: 0; overflow-wrap: anywhere; }
+.bloq-notice .bloq-notice-close { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
+.bloq-notice .bloq-notice-close:hover { background: #18252B0D; }
+.bloq-notice .bloq-notice-close:focus-visible { outline: 2px solid var(--color-azul); outline-offset: -3px; }

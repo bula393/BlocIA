@@ -1,3 +1,4 @@
+import { Notice } from '../components/Notice';
 import { FormEvent, useEffect, useState } from 'react';
 import { ProfessionField } from '../components/auth/ProfessionField';
 import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
@@ -66,7 +67,7 @@ export function Perfil() {
         </header>
 
         {profile.isLoading && <p className="profile-loading" role="status">Cargando perfil…</p>}
-        {profile.isError && <p className="bloq-error" role="alert">No se pudo cargar el perfil. <button type="button" className="profile-retry" onClick={() => void profile.refetch()}>Reintentar</button></p>}
+        {profile.isError && <Notice key={profile.errorUpdatedAt} className="bloq-error" role="alert">No se pudo cargar el perfil. <button type="button" className="profile-retry" onClick={() => void profile.refetch()}>Reintentar</button></Notice>}
 
         <div className="profile-layout">
           <section className="profile-edit" aria-labelledby="profile-edit-title">
@@ -90,8 +91,8 @@ export function Perfil() {
               <div className="bloq-actions profile-actions">
                 <button type="submit" data-primary="true" disabled={!changed || update.isPending}>{update.isPending ? 'Guardando…' : 'Guardar cambios'}</button>
               </div>
-              {update.isError && <p className="bloq-error" role="alert">No se guardaron los cambios. Revisá los datos e intentá de nuevo.</p>}
-              {update.isSuccess && !changed && <p className="bloq-success" role="status">Perfil actualizado.</p>}
+              {update.isError && <Notice key={update.submittedAt} className="bloq-error" role="alert">No se guardaron los cambios. Revisá los datos e intentá de nuevo.</Notice>}
+              {update.isSuccess && !changed && <Notice key={update.submittedAt} className="bloq-success" role="status">Perfil actualizado.</Notice>}
             </form>
           </section>
 
