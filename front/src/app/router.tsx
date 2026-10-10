@@ -9,6 +9,7 @@ import { NuevoChat } from '../pages/NuevoChat';
 import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
 import { GoogleCallback } from '../pages/GoogleCallback';
 import { Actividad } from '../pages/Actividad';
+import { Cuenta } from '../pages/Cuenta';
 
 function ProtectedRouteGuard({ requestedPath }: { requestedPath: string }) {
   return (
@@ -41,5 +42,6 @@ export function Router() {
   if (path === '/perfil-tecnico') return <PerfilTecnico />;
   if (path === '/nuevo-chat') return <NuevoChat />;
   if (path === '/actividad') return <Actividad />;
+  if (path === '/cuenta') return <Cuenta />;
   return <ProtectedRouteGuard requestedPath={path} />;
 }

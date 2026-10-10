@@ -43,9 +43,10 @@ export function RielLateral({ activePath, title, collapsed, chatLocked = false, 
 
   return <>
     <header className="bloq-mobilebar">
-      <button className="bloq-menu-button" type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-label={menuOpen ? 'Cerrar navegación' : 'Abrir navegación'}><Icon name={menuOpen ? 'close' : 'menu'} /></button>
+      {isAuthenticated ? activePath !== '/nuevo-chat' && activePath !== '/cuenta' && <a href="/cuenta" className="bloq-mobile-back" aria-label="Volver a tu cuenta"><Icon name="arrow-left" /></a> : <button className="bloq-menu-button" type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-label={menuOpen ? 'Cerrar navegación' : 'Abrir navegación'}><Icon name={menuOpen ? 'close' : 'menu'} /></button>}
       <a href="/" aria-label="BloqIA, inicio"><Brand /></a>
       <span className="bloq-mobile-title">{title}</span>
+      {isAuthenticated && <a href="/cuenta" className="bloq-mobile-account" aria-label="Abrir tu cuenta"><Icon name="user" size={20} /></a>}
     </header>
     <button className="bloq-sidebar-backdrop" type="button" aria-label="Cerrar navegación" aria-hidden={!menuOpen} tabIndex={menuOpen ? 0 : -1} onClick={closeMenu} data-open={menuOpen} />
     <aside className="bloq-rail" aria-label="Navegación principal" data-open={menuOpen}>

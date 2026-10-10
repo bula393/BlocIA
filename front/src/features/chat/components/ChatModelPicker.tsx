@@ -2,6 +2,8 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import type { ChatController } from '../useChatController';
 import type { ChatModelOption } from '../types';
 import { Icon } from '../../../mockup/brand';
+import { MobileSheet } from '../../../components/mobile/MobileSheet';
+import { useMobileViewport } from '../../../components/mobile/useMobileViewport';
 
 export function ChatModelPicker({ chat }: { chat: ChatController }) {
   const {
@@ -10,6 +12,7 @@ export function ChatModelPicker({ chat }: { chat: ChatController }) {
   } = chat;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const mobile = useMobileViewport();
   const pickerId = useId();
   const pickerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -38,6 +41,7 @@ export function ChatModelPicker({ chat }: { chat: ChatController }) {
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: PointerEvent) {
+      if (mobile) return;
       if (!pickerRef.current?.contains(event.target as Node)) {
         setOpen(false);
         setQuery('');
@@ -57,7 +61,7 @@ export function ChatModelPicker({ chat }: { chat: ChatController }) {
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [open]);
+  }, [open, mobile]);
 
   function focusOption(index: number) {
     optionRefs.current[index]?.focus();
@@ -104,6 +108,21 @@ export function ChatModelPicker({ chat }: { chat: ChatController }) {
 
   if (usageLock?.blocked) return null;
 
+  const options = <div className="chat-model-popover" onBlurCapture={(event) => {
+      if (!mobile && !event.currentTarget.parentElement?.contains(event.relatedTarget as Node | null)) { setOpen(false); setQuery(''); }
+    }}>
+      <label className="chat-model-search"><Icon name="search" size={16} /><input ref={searchRef} type="search" value={query} aria-label="Buscar un modelo" placeholder="Buscar por modelo o proveedor" onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} /><kbd>Esc</kbd></label>
+      <div className="chat-model-options" id={`${pickerId}-listbox`} role="listbox" aria-label="Modelos de respuesta">
+        {filteredOptions.map((model, index) => <button key={model.key} ref={(element) => { optionRefs.current[index] = element; }} type="button" role="option" aria-selected={model.key === selectedModel} className="chat-model-option" onClick={() => chooseModel(model)} onKeyDown={(event) => handleOptionKeyDown(event, index)}>
+          <span className="chat-model-option-mark" aria-hidden="true">{model.providerName.slice(0, 1).toLocaleUpperCase('es-AR')}</span>
+          <span className="chat-model-option-copy"><strong>{model.displayName}</strong><small>{model.providerId === 'local' && mobile ? 'Servidor de BloqIA' : model.providerName} · {model.modelId}</small></span>
+          {model.key === selectedModel && <Icon name="check" size={16} />}
+        </button>)}
+        {filteredOptions.length === 0 && <p className="chat-model-empty">No encontramos modelos con “{query}”.</p>}
+      </div>
+      <div className="chat-model-popover-foot"><span>{filteredOptions.length} {filteredOptions.length === 1 ? 'modelo disponible' : 'modelos disponibles'}</span><span>↑ ↓ para recorrer</span></div>
+    </div>;
+
   return <div className="chat-model-picker" ref={pickerRef}>
     <span className="chat-model-picker-label" id={`${pickerId}-label`}>Modelo de respuesta</span>
     <button
@@ -113,7 +132,7 @@ export function ChatModelPicker({ chat }: { chat: ChatController }) {
       role="combobox"
       aria-label="Modelo de respuesta"
       aria-labelledby={`${pickerId}-label`}
-      aria-haspopup="listbox"
+      aria-haspopup={mobile ? 'dialog' : 'listbox'}
       aria-expanded={open}
       aria-controls={`${pickerId}-listbox`}
       aria-describedby={modelSelectionMessage ? `${pickerId}-selection-message` : undefined}
@@ -129,50 +148,13 @@ export function ChatModelPicker({ chat }: { chat: ChatController }) {
       <span className="chat-model-trigger-icon"><Icon name="layers" size={16} /></span>
       <span className="chat-model-trigger-copy">
         <strong>{selectedModelDisplay.displayName}</strong>
-        <small>{selectedModelDisplay.providerName} · {selectedModelDisplay.modelId}</small>
+        <small>{mobile && selectedModelDisplay.providerId === 'local' ? 'Servidor de BloqIA' : selectedModelDisplay.providerName} · {selectedModelDisplay.modelId}</small>
       </span>
       <span className="chat-model-trigger-action">Cambiar</span>
       <Icon name="chevron-down" size={16} />
     </button>
 
-    {open && <div className="chat-model-popover" onBlurCapture={(event) => {
-      if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node | null)) {
-        setOpen(false);
-        setQuery('');
-      }
-    }}>
-      <label className="chat-model-search">
-        <Icon name="search" size={16} />
-        <input
-          ref={searchRef}
-          type="search"
-          value={query}
-          aria-label="Buscar un modelo"
-          placeholder="Buscar por modelo o proveedor"
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={handleSearchKeyDown}
-        />
-        <kbd>Esc</kbd>
-      </label>
-      <div className="chat-model-options" id={`${pickerId}-listbox`} role="listbox" aria-labelledby={`${pickerId}-label`}>
-        {filteredOptions.map((model, index) => <button
-          key={model.key}
-          ref={(element) => { optionRefs.current[index] = element; }}
-          type="button"
-          role="option"
-          aria-selected={model.key === selectedModel}
-          className="chat-model-option"
-          onClick={() => chooseModel(model)}
-          onKeyDown={(event) => handleOptionKeyDown(event, index)}
-        >
-          <span className="chat-model-option-mark" aria-hidden="true">{model.providerName.slice(0, 1).toLocaleUpperCase('es-AR')}</span>
-          <span className="chat-model-option-copy"><strong>{model.displayName}</strong><small>{model.providerName} · {model.modelId}</small></span>
-          {model.key === selectedModel && <Icon name="check" size={16} />}
-        </button>)}
-        {filteredOptions.length === 0 && <p className="chat-model-empty">No encontramos modelos con “{query}”.</p>}
-      </div>
-      <div className="chat-model-popover-foot"><span>{filteredOptions.length} {filteredOptions.length === 1 ? 'modelo disponible' : 'modelos disponibles'}</span><span>↑ ↓ para recorrer</span></div>
-    </div>}
+    {mobile ? <MobileSheet open={open} title="Elegí un modelo" onClose={() => { setOpen(false); setQuery(''); }}><p>Usá un modelo disponible o uno de tus proveedores conectados.</p>{options}<a className="mobile-sheet-secondary" href="/perfil-tecnico">Administrar conexiones<Icon name="arrow" size={17} /></a></MobileSheet> : open && options}
 
     {modelSelectionMessage && <small id={`${pickerId}-selection-message`} className="chat-model-message" role="status" aria-live="polite">{modelSelectionMessage}</small>}
     {modelOptions.length === 0 && !modelSelectionMessage && <small className="chat-model-message">{modelsLoading ? 'Buscando modelos…' : providerQueryError ? 'No se pudieron cargar tus proveedores.' : providerTokenAvailable ? 'No hay modelos disponibles para las claves conectadas. Revisá tu Perfil técnico.' : <>Conectá un proveedor desde <a href="/perfil-tecnico">Perfil técnico</a> para generar respuestas.</>}</small>}

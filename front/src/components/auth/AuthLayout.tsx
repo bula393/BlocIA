@@ -15,6 +15,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
     </aside>
     <main className="auth-main">
       <header className="auth-main-header"><a href="/" className="auth-home-link"><Icon name="arrow-left" size={16} />Volver al inicio</a><span>Un paso a la vez.</span></header>
+      <a href="/" className="auth-mobile-brand" aria-label="BloqIA, inicio"><Brand compact /></a>
       <div className="auth-form-wrap">{children}</div>
       <footer className="auth-main-footer">Una buena pregunta abre caminos.</footer>
     </main>

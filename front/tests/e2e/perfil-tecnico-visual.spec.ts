@@ -60,12 +60,16 @@ test('technical profile verifies email before connecting a personal key on deskt
   await code.fill('111111');
   await page.getByRole('button', { name: 'Verificar correo', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveText(/El código no es correcto/);
+  await page.getByRole('button', { name: /Groq.*Conexión del proyecto disponible/ }).click();
   await expect(token).toHaveValue('clave-de-prueba');
   await expect(save).toBeDisabled();
   expect(saves).toBe(0);
+  await page.getByRole('button', { name: 'Cerrar panel', exact: true }).click();
   await code.fill('123456');
   await page.getByRole('button', { name: 'Verificar correo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Correo verificado', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Groq.*Conexión del proyecto disponible/ }).click();
+  await expect(token).toHaveValue('clave-de-prueba');
   await expect(save).toBeEnabled();
   await save.click();
   await expect(token).toHaveValue('');

@@ -1,6 +1,8 @@
 import { FormEvent, useState } from 'react';
 import { ProfessionField } from '../components/auth/ProfessionField';
 import { AuthLayout } from '../components/auth/AuthLayout';
+import { PasswordField } from '../components/auth/PasswordField';
+import { useMobileViewport } from '../components/mobile/useMobileViewport';
 import { Icon } from '../mockup/brand';
 import { useRegister } from '../features/usuario/useRegister';
 import { startGoogleLogin } from '../api/auth';
@@ -12,6 +14,7 @@ function strongPasswordHint(password: string) {
 }
 
 export function Register() {
+  const mobile = useMobileViewport();
   const [mail, setMail] = useState('');
   const [password, setPassword] = useState('');
   const [age, setAge] = useState(18);
@@ -30,10 +33,10 @@ export function Register() {
       <p>Un perfil breve ayuda a dar contexto a tus conversaciones.</p>
     </section>
     <button className="auth-google-button" type="button" onClick={startGoogleLogin}><span className="auth-google-mark" aria-hidden="true">G</span>Registrarme con Google<Icon name="arrow-up-right" size={16} /></button>
-    <div className="auth-divider"><span>o con tu correo</span></div>
+    <div className="auth-divider"><span>{mobile ? 'o registrate con' : 'o con tu correo'}</span></div>
     <form className="bloq-form auth-form" onSubmit={submit}>
       <label>Correo electrónico<input autoComplete="email" type="email" value={mail} onChange={(event) => setMail(event.target.value)} required /></label>
-      <label>Contraseña<input autoComplete="new-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+      <PasswordField value={password} onChange={setPassword} autoComplete="new-password" />
       <small className="auth-password-hint" data-valid={password.length >= 10 && /[A-Za-z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password)}>{strongPasswordHint(password)}</small>
       <div className="auth-field-pair">
         <label>Edad<input type="number" min={1} value={age} onChange={(event) => setAge(Number(event.target.value))} required /></label>

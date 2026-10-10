@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { MobileSheet } from '../components/mobile/MobileSheet';
+import { useMobileViewport } from '../components/mobile/useMobileViewport';
 import { useQuery } from '@tanstack/react-query';
 import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
 import { usePerfilTecnico } from '../features/usuario/usePerfilTecnico';
@@ -72,6 +74,8 @@ function ProviderSection({ provider, token, setToken, save, remove, emailVerifie
   remove: ReturnType<typeof usePerfilTecnico>['remove'];
   emailVerified: boolean;
 }) {
+  const mobile = useMobileViewport();
+  const [open, setOpen] = useState(false);
   const guide = guides[provider.providerId];
   const catalog = useQuery({
     queryKey: ['available-models', provider.providerId],
@@ -87,7 +91,7 @@ function ProviderSection({ provider, token, setToken, save, remove, emailVerifie
     ? catalog.error.message
     : 'No se pudo consultar el catálogo. Revisá la conexión del servidor y la clave del proveedor.';
 
-  return <section className="provider-section" id={`provider-${provider.providerId}`}>
+  const content = <div className="provider-section">
     <header className="provider-section__header">
       <div className="provider-heading"><span className={`provider-mark provider-mark--${provider.providerId}`} aria-hidden="true">{providerMark(provider.providerId)}</span><h2>{providerLabel(provider)}</h2></div>
       {guide && <span className="provider-tier">{guide.tier}</span>}
@@ -105,7 +109,11 @@ function ProviderSection({ provider, token, setToken, save, remove, emailVerifie
     <p className="provider-secret-help">Pegá una clave API de este proveedor. No ingreses tu contraseña de Google, ChatGPT ni Claude.</p>
     {!emailVerified && <p className="provider-verification-help" id={`verification-help-${provider.providerId}`}><a href="#verificacion-correo">Verificá tu correo</a> antes de guardar o cambiar esta clave.</p>}
     <div className="bloq-actions"><button type="button" onClick={() => remove.mutate(provider.providerId)} disabled={!configured || removing}>Quitar clave</button><button type="button" data-primary="true" onClick={() => save.mutate({ providerId: provider.providerId, token: token.trim() }, { onSuccess: () => setToken('') })} aria-describedby={!emailVerified ? `verification-help-${provider.providerId}` : undefined} disabled={!emailVerified || !token.trim() || saving}>{saving ? 'Guardando…' : 'Conectar clave'}</button></div>
-  </section>;
+  </div>;
+  return mobile ? <section className="provider-mobile-row" id={`provider-${provider.providerId}`}>
+    <button type="button" className="provider-mobile-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog"><span className="provider-mark" aria-hidden="true">{providerMark(provider.providerId)}</span><span><strong>{providerLabel(provider)}</strong><small>{configured ? 'Clave personal conectada' : defaultAvailable ? 'Conexión del proyecto disponible' : 'Sin conectar'}</small></span><Icon name="chevron" size={17} /></button>
+    <MobileSheet open={open} onClose={() => setOpen(false)} title={providerLabel(provider)}><div onClickCapture={(event) => { if ((event.target as HTMLElement).closest('a[href="#verificacion-correo"]')) setOpen(false); }}>{content}</div></MobileSheet>
+  </section> : <section id={`provider-${provider.providerId}`}>{content}</section>;
 }
 
 export function PerfilTecnico() {

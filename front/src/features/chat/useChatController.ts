@@ -104,8 +104,13 @@ export function useChatController() {
   }, []);
 
   useEffect(() => {
-    const url = activeId ? `/nuevo-chat?chat=${encodeURIComponent(activeId)}` : '/nuevo-chat';
-    window.history.replaceState({}, '', url);
+    const params = new URLSearchParams();
+    if (activeId) params.set('chat', activeId);
+    if (historyOpen) params.set('history', '1');
+    window.history.replaceState({}, '', `/nuevo-chat${params.size ? `?${params}` : ''}`);
+  }, [activeId, historyOpen]);
+
+  useEffect(() => {
     if (!activeId || inFlight.current) return;
     const controller = new AbortController();
     setLoading(true);
@@ -259,9 +264,9 @@ export function useChatController() {
     window.setTimeout(() => textarea.current?.focus(), 0);
   }
 
-  async function removeConversation(id: string) {
+  async function removeConversation(id: string, confirmed = false) {
     if (inFlight.current || confirmation) return;
-    if (!window.confirm('¿Eliminar este chat y sus mensajes?')) return;
+    if (!confirmed && !window.confirm('¿Eliminar este chat y sus mensajes?')) return;
     setDeleting(id);
     try {
       await deleteConversation(id);

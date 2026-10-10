@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { AuthLayout } from '../components/auth/AuthLayout';
+import { PasswordField } from '../components/auth/PasswordField';
+import { useMobileViewport } from '../components/mobile/useMobileViewport';
 import { Icon } from '../mockup/brand';
 import { useLogin } from '../features/usuario/useLogin';
 import { startGoogleLogin } from '../api/auth';
@@ -7,6 +9,7 @@ import { navigateTo } from '../app/navigation';
 import { authErrorMessage } from '../components/auth/authErrorMessage';
 
 export function Login() {
+  const mobile = useMobileViewport();
   const [mail, setMail] = useState('');
   const [password, setPassword] = useState('');
   const login = useLogin();
@@ -27,10 +30,10 @@ export function Login() {
       <p>Recuperá tus conversaciones, tu perfil y tus herramientas.</p>
     </section>
     <button className="auth-google-button" type="button" onClick={startGoogleLogin}><span className="auth-google-mark" aria-hidden="true">G</span>Continuar con Google<Icon name="arrow-up-right" size={16} /></button>
-    <div className="auth-divider"><span>o con correo electrónico</span></div>
+    <div className="auth-divider"><span>{mobile ? 'o continuá con' : 'o con correo electrónico'}</span></div>
     <form className="bloq-form auth-form" onSubmit={submit}>
       <label>Correo electrónico<input autoComplete="email" value={mail} onChange={(event) => setMail(event.target.value)} type="email" required /></label>
-      <label>Contraseña<input autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} type="password" required /></label>
+      <PasswordField value={password} onChange={setPassword} autoComplete="current-password" />
       <button type="submit" data-primary="true" disabled={login.isPending}>{login.isPending ? 'Ingresando…' : 'Iniciar sesión'}<Icon name="arrow" size={17} /></button>
     </form>
     {login.isError && <p className="bloq-error auth-feedback" role="alert">{authErrorMessage(login.error, 'login')}</p>}

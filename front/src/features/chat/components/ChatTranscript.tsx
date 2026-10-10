@@ -12,7 +12,8 @@ export function ChatTranscript({ chat }: { chat: ChatController }) {
             <p className="chat-welcome-label">Clasificador de preguntas</p>
             <h1>Clasificá tu <em>consulta.</em></h1>
             <p>Escribí una consulta para ver su clasificación. Las consultas generales e informativas también reciben una respuesta del modelo elegido.</p>
-            <div className="chat-ideas">{ideas.map((idea) => <button type="button" key={idea.title} onClick={() => { setDraft(idea.prompt); textarea.current?.focus(); }}><span>{idea.title}</span><small>{idea.prompt}</small><Icon name="arrow-up-right" size={16} /></button>)}</div>
+            <div className="chat-mobile-welcome"><h1>Dale espacio a una buena <em>pregunta.</em></h1><p>Entendé un tema, ordená tus ideas o explorá una decisión.</p></div>
+            <div className="chat-ideas">{ideas.map((idea, index) => <button type="button" key={idea.title} onClick={() => { setDraft(idea.prompt); textarea.current?.focus(); }}><span>{idea.title}</span><small>{idea.prompt}</small><span className="chat-idea-icon"><Icon name={['grid', 'layers', 'shield'][index]} size={19} /></span><Icon name="arrow-up-right" size={16} /></button>)}</div>
           </div>}
           {loading && <p className="chat-loading" role="status">Cargando conversación…</p>}
           <div className="chat-transcript" role="log" aria-label="Mensajes de la conversación" aria-live="polite">

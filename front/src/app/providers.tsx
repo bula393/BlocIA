@@ -9,6 +9,7 @@ import '../tokens/chat.css';
 import '../tokens/inicio.css';
 import '../tokens/brand.css';
 import '../tokens/workspace.css';
+import '../tokens/mobile.css';
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);

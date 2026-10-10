@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Brand, Icon } from '../mockup/brand';
 import '../mockup/mockup.css';
+import { useMobileViewport } from '../components/mobile/useMobileViewport';
+import { MobileSheet } from '../components/mobile/MobileSheet';
 
 export type LandingAction = 'chat' | 'profile' | 'providers' | 'usage' | 'login' | 'register' | 'google';
 const stages = [
@@ -13,6 +15,7 @@ export function Landing({ open, isAuthenticated = false }: { open: (view: Landin
   const [menu, setMenu] = useState(false);
   const [stage, setStage] = useState(0);
   const [faq, setFaq] = useState<number | null>(0);
+  const mobile = useMobileViewport();
   const root = useRef<HTMLDivElement>(null);
   const heroImage = useRef<HTMLImageElement>(null);
 
@@ -27,7 +30,7 @@ export function Landing({ open, isAuthenticated = false }: { open: (view: Landin
     };
     const scroll = () => { if (!frame) frame = window.requestAnimationFrame(update); };
     const observer = new IntersectionObserver(entries => {
-      for (const entry of entries) if (entry.isIntersecting) setStage(Number((entry.target as HTMLElement).dataset.stage));
+      for (const entry of entries) if (entry.isIntersecting && !window.matchMedia('(max-width: 767px)').matches) setStage(Number((entry.target as HTMLElement).dataset.stage));
     }, { rootMargin: '-25% 0px -45% 0px', threshold: 0 });
     root.current?.querySelectorAll('[data-stage]').forEach(el => observer.observe(el));
     window.addEventListener('scroll', scroll, { passive: true });
@@ -58,6 +61,7 @@ export function Landing({ open, isAuthenticated = false }: { open: (view: Landin
       <div className="mk-header-actions"><button className="mk-access" onClick={() => open(isAuthenticated ? 'profile' : 'login')}>{isAuthenticated ? 'Mi perfil' : 'Iniciar sesión'}</button><button className="mk-button mk-button--small" onClick={() => open(isAuthenticated ? 'chat' : 'register')}>{isAuthenticated ? 'Abrir el chat' : 'Crear cuenta'} <Icon name="arrow-up" size={16} /></button></div>
       <button className="mk-menu" aria-label={menu ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={menu} onClick={() => setMenu(!menu)}><Icon name={menu ? 'close' : 'menu'} /></button>
     </header>
+    <MobileSheet open={mobile && menu} onClose={closeMenu} title="Explorá BloqIA"><nav className="mobile-landing-menu" aria-label="Secciones de la portada"><a href="#espacio" onClick={closeMenu}>El espacio<Icon name="chevron" /></a><a href="#metodo" onClick={closeMenu}>Cómo funciona<Icon name="chevron" /></a><a href="#criterio" onClick={closeMenu}>Tu criterio<Icon name="chevron" /></a><a href="#preguntas" onClick={closeMenu}>Antes de empezar<Icon name="chevron" /></a></nav><button type="button" className="mobile-sheet-primary" onClick={() => { closeMenu(); open(isAuthenticated ? 'chat' : 'register'); }}>{isAuthenticated ? 'Abrir el chat' : 'Crear cuenta'}</button><button type="button" className="mobile-sheet-secondary" onClick={() => { closeMenu(); open(isAuthenticated ? 'profile' : 'login'); }}>{isAuthenticated ? 'Mi perfil' : 'Iniciar sesión'}</button></MobileSheet>
 
     <main id="contenido">
       <section className="mk-hero" aria-labelledby="hero-title">
@@ -88,6 +92,7 @@ export function Landing({ open, isAuthenticated = false }: { open: (view: Landin
 
       <section className="mk-method" id="metodo" aria-labelledby="method-title">
         <div className="mk-method-top"><h2 id="method-title">De la pregunta<br />a una nueva perspectiva.</h2><p>Así se construye una conversación en BloqIA.<br />Deslizá para seguir el recorrido.</p></div>
+        <div className="mk-mobile-stage-tabs" role="group" aria-label="Pasos de una consulta">{['Preguntar', 'Clasificar', 'Explorar'].map((label, i) => <button type="button" key={label} aria-pressed={stage === i} onClick={() => setStage(i)}>{label}</button>)}</div>
         <div className="mk-method-grid">
           <div className="mk-chapters">
             {stages.map((item, i) => <article className={`mk-chapter${stage === i ? ' mk-chapter--active' : ''}`} key={item.title} data-stage={i}><div className="mk-chapter-position" aria-label={`Paso ${i + 1} de 3`}><span>{['Preguntar', 'Clasificar', 'Explorar'][i]}</span><span>{i + 1} / 3</span></div><h3>{item.title}</h3><p>{item.text}</p></article>)}
@@ -132,6 +137,7 @@ export function Landing({ open, isAuthenticated = false }: { open: (view: Landin
 
       <section className="mk-closing" aria-labelledby="closing-title"><div><h2 id="closing-title">Tu próxima idea<br />empieza <em>acá.</em></h2><button className="mk-button mk-button--light" onClick={() => open('chat')}>Empezá una conversación <Icon name="arrow" /></button></div><span className="mk-closing-mark" aria-hidden="true"><Brand compact /></span><p>Traé una pregunta.<br />Llevate otra perspectiva.</p></section>
     </main>
+    {mobile && <div className="mk-mobile-dock"><button type="button" className="mk-button" onClick={() => open('chat')}>Abrí tu espacio<Icon name="arrow" size={19} /></button></div>}
 
     <footer className="mk-footer"><div className="mk-footer-top"><div><Brand /><p>Un espacio para pensar con criterio.</p></div><div className="mk-footer-links"><div><strong>Tu espacio</strong><button onClick={() => open('chat')}>Chat y conversaciones</button><button onClick={() => open('providers')}>Proveedores y modelos</button></div><div><strong>Tu cuenta</strong><button onClick={() => open('profile')}>Perfil</button><button onClick={() => open('usage')}>Actividad</button><button onClick={() => open('login')}>Iniciar sesión</button><button onClick={() => open('register')}>Crear cuenta</button></div><div><strong>Explorá</strong><a href="#metodo">Cómo funciona</a><a href="#criterio">Tu criterio</a><a href="#identidad">La identidad</a><button onClick={() => open('google')}>Acceso con Google</button></div></div></div>
       <div className="mk-brand-system" id="identidad"><div><strong>Una identidad que se construye.</strong><p>Bloques que conectan. Tinta para pensar. Papel para leer.</p><a href="/mockup/logo.svg" download="bloqia-logo.svg">Descargar logo SVG <Icon name="arrow-up" size={14} /></a></div><div className="mk-palette" aria-label="Paleta de identidad"><div><span style={{ background: '#18252B' }} /><strong>Tinta</strong><code>#18252B</code></div><div><span style={{ background: '#F4F3EE' }} /><strong>Papel</strong><code>#F4F3EE</code></div><div><span style={{ background: '#244ADA' }} /><strong>Ultramar</strong><code>#244ADA</code></div><div><span style={{ background: '#DAED9E' }} /><strong>Idea</strong><code>#DAED9E</code></div></div></div>

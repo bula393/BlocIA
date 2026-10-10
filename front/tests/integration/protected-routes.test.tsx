@@ -10,6 +10,12 @@ function renderAt(path: string) {
 
 afterEach(() => setRouteJwt(null));
 
+test('account route does not render protected content without valid jwt', () => {
+  renderAt('/cuenta');
+  expect(screen.getByRole('heading', { name: 'Iniciá sesión para seguir' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /Tu espacio, a tu manera/ })).not.toBeInTheDocument();
+});
+
 test('profile route does not render protected content without valid jwt', () => {
   renderAt('/perfil');
   expect(screen.getByRole('heading', { name: 'Iniciá sesión para seguir' })).toBeInTheDocument();
