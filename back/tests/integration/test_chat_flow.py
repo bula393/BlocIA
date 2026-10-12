@@ -381,7 +381,7 @@ def test_classifier_review_state_fails_closed_and_counts_as_personal(sql_chat, m
     monkeypatch.setattr(chat_routes.AIResponder, "generate", unexpected)
     response = client.post(
         f"/chat/conversations/{identifier}/messages",
-        json={"prompt": "Consulta", "requestId": str(uuid4()), "providerId": "local", "modelId": "qwen3-local"},
+        json={"prompt": "Consulta", "requestId": str(uuid4())},
     )
 
     assert response.status_code == 200
