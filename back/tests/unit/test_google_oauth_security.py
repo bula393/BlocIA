@@ -11,6 +11,7 @@ from google.auth.exceptions import GoogleAuthError
 from google.auth.transport import requests as google_requests
 
 from app.presentation.user import auth_routes
+from app.application.user.google_auth import google_registration_secret
 
 
 def test_production_callback_defaults_to_public_api_route(monkeypatch):
@@ -37,6 +38,18 @@ def test_signed_google_result_rejects_tampering(monkeypatch):
 
     assert auth_routes.decode_result(signed) == {"accessToken": "private-access-token"}
     assert auth_routes.decode_result(f"{encoded}.{tampered_signature}") is None
+
+
+def test_google_registration_key_is_derived_when_optional_override_is_missing(monkeypatch):
+    monkeypatch.delenv("GOOGLE_REGISTRATION_SECRET", raising=False)
+    monkeypatch.setenv("ACCESS_TOKEN_SECRET", "test-access-token-secret-that-is-long-enough")
+
+    first = google_registration_secret()
+    second = google_registration_secret()
+
+    assert len(first) == 32
+    assert first == second
+    assert first != b"test-access-token-secret-that-is-long-enough"
 
 
 @pytest.fixture

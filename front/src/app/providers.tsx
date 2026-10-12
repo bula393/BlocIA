@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './queryClient';
 import { useEffect, useState, type ReactNode } from 'react';
-import { forgetSession, restoreSession } from '../api/auth';
+import { forgetSession, restoreSession, subscribeToAccountChanges } from '../api/auth';
 import { getCurrentJwtStatus } from './routeGuard';
 import '../tokens/visual.css';
 import '../tokens/typography.css';
@@ -15,11 +15,13 @@ function SessionBootstrap({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    const unsubscribe = subscribeToAccountChanges(() => window.location.reload());
     let isMounted = true;
     if (getCurrentJwtStatus() === 'valid') {
       setIsReady(true);
       return () => {
         isMounted = false;
+        unsubscribe();
       };
     }
 
@@ -33,6 +35,7 @@ function SessionBootstrap({ children }: { children: ReactNode }) {
       });
     return () => {
       isMounted = false;
+      unsubscribe();
       window.clearTimeout(timeoutId);
       controller.abort();
     };

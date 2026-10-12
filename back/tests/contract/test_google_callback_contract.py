@@ -18,11 +18,13 @@ def test_google_start_without_configuration_returns_to_front(client, monkeypatch
 def test_google_callback_uses_one_time_session_result(client, monkeypatch):
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client")
     monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "test-secret")
+    monkeypatch.setenv("GOOGLE_REGISTRATION_SECRET", "test-secret-that-is-long-enough-for-google-contract")
     monkeypatch.setattr(auth_routes, "google_identity", lambda code, nonce: {
         "sub": "google-subject",
         "email": "new.google@example.com",
         "email_verified": True,
         "aud": "test-client",
+        "nonce": nonce,
     })
     start = client.get("/auth/google/start", follow_redirects=False)
     state = parse_qs(urlsplit(start.headers["location"]).query)["state"][0]

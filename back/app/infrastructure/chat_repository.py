@@ -82,37 +82,59 @@ class ChatRepository:
     def reserve(self, mail, identifier, request_id, prompt):
         prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
         with self.database.transaction():
+            if self.database.is_postgres:
+                self.database.query("SELECT mail FROM users WHERE mail=? FOR UPDATE", (mail,))
             self.get(mail, identifier)
-            self.database.execute(
-                "UPDATE chat_turns SET state='failed' WHERE state='pending' AND started_at<? "
-                "AND conversation_id IN (SELECT id FROM conversations WHERE user_mail=?)",
-                (time.time() - 300, mail),
-            )
             previous = self.database.query("SELECT * FROM chat_turns WHERE conversation_id=? AND request_id=?", (identifier, request_id))
             if previous:
                 if previous[0]["prompt_hash"] != prompt_hash:
                     raise TurnConflictError("Este envío ya pertenece a otra consulta.")
                 if previous[0]["state"] == "completed":
-                    return False
+                    return None
                 if previous[0]["state"] == "pending":
                     raise TurnConflictError("La consulta sigue en proceso. Esperá antes de reintentar.")
-            pending = self.database.query(
-                "SELECT 1 FROM chat_turns JOIN conversations ON conversations.id=chat_turns.conversation_id "
-                "WHERE conversations.user_mail=? AND chat_turns.state='pending' LIMIT 1",
-                (mail,),
-            )
-            if pending:
+            active = self.database.query("SELECT 1 FROM active_chat_work WHERE user_mail=?", (mail,))
+            if active:
                 raise TurnConflictError("Ya hay una respuesta en curso. Esperá antes de enviar otra consulta.")
+            lease_id = str(uuid4())
             try:
-                self.database.execute("INSERT INTO chat_turns(conversation_id,request_id,prompt_hash,state,started_at) VALUES (?,?,?,'pending',?) ON CONFLICT(conversation_id,request_id) DO UPDATE SET state='pending',started_at=excluded.started_at,phase='classifying'", (identifier, request_id, prompt_hash, time.time()))
+                self.database.execute(
+                    "INSERT INTO active_chat_work(user_mail,conversation_id,request_id,lease_id,started_at) VALUES (?,?,?,?,?)",
+                    (mail, identifier, request_id, lease_id, time.time()),
+                )
+                if previous:
+                    self.database.execute(
+                        "UPDATE chat_turns SET state='pending',started_at=?,phase='classifying',lease_id=? "
+                        "WHERE conversation_id=? AND request_id=? AND state='failed'",
+                        (time.time(), lease_id, identifier, request_id),
+                    )
+                else:
+                    self.database.execute(
+                        "INSERT INTO chat_turns(conversation_id,request_id,prompt_hash,state,started_at,lease_id) "
+                        "VALUES (?,?,?,'pending',?,?)",
+                        (identifier, request_id, prompt_hash, time.time(), lease_id),
+                    )
             except Exception as error:
                 if not self.database.is_integrity_error(error):
                     raise
                 raise TurnConflictError("Ya hay una respuesta en curso para esta conversación.") from error
-        return True
+        return lease_id
 
-    def mark_generating(self, identifier, request_id):
-        self.database.execute("UPDATE chat_turns SET phase='generating' WHERE conversation_id=? AND request_id=? AND state='pending'", (identifier, request_id))
+    def mark_generating(self, identifier, request_id, lease_id=None):
+        if lease_id is None:
+            active = self.database.query(
+                "SELECT lease_id FROM active_chat_work WHERE conversation_id=? AND request_id=?",
+                (identifier, request_id),
+            )
+            lease_id = active[0]["lease_id"] if active else None
+        if lease_id is None:
+            raise TurnConflictError("La reserva de esta respuesta venció. Volvé a enviar la consulta.")
+        updated = self.database.execute(
+            "UPDATE chat_turns SET phase='generating' WHERE conversation_id=? AND request_id=? AND state='pending' AND lease_id=?",
+            (identifier, request_id, lease_id),
+        )
+        if updated != 1:
+            raise TurnConflictError("La reserva de esta respuesta venció. Volvé a enviar la consulta.")
 
     def progress(self, mail, identifier, request_id):
         rows = self.database.query(
@@ -125,17 +147,58 @@ class ChatRepository:
             return None
         return {"phase": rows[0]["phase"], "state": rows[0]["state"]}
 
-    def complete(self, mail, identifier, request_id, prompt, answer, classification, provider_id=None, model_id=None):
+    def complete(self, mail, identifier, request_id, prompt, answer, classification, provider_id=None, model_id=None, *, lease_id=None):
         with self.database.transaction():
+            if self.database.is_postgres:
+                self.database.query("SELECT mail FROM users WHERE mail=? FOR UPDATE", (mail,))
             self.get(mail, identifier)
+            if lease_id is None:
+                current = self.database.query(
+                    "SELECT lease_id FROM active_chat_work WHERE user_mail=? AND conversation_id=? AND request_id=?",
+                    (mail, identifier, request_id),
+                )
+                lease_id = current[0]["lease_id"] if current else None
+            if lease_id is None:
+                raise TurnConflictError("La reserva de esta respuesta venció. Volvé a enviar la consulta.")
+            active = self.database.query(
+                "SELECT 1 FROM active_chat_work WHERE user_mail=? AND conversation_id=? AND request_id=? AND lease_id=?",
+                (mail, identifier, request_id, lease_id),
+            )
+            turn = self.database.query(
+                "SELECT state,lease_id FROM chat_turns WHERE conversation_id=? AND request_id=?",
+                (identifier, request_id),
+            )
+            if not active or not turn or turn[0]["state"] != "pending" or turn[0]["lease_id"] != lease_id:
+                raise TurnConflictError("La reserva de esta respuesta venció. Volvé a enviar la consulta.")
             timestamp = now()
             messages = [("user", prompt, None, None), ("assistant", answer, provider_id, model_id)]
             for role, content, message_provider, message_model in messages:
                 self.database.execute("INSERT INTO messages(id,conversation_id,request_id,role,content,created_at,classification,provider_id,model_id) VALUES (?,?,?,?,?,?,?,?,?)", (str(uuid4()), identifier, request_id, role, content, timestamp, json.dumps(classification), message_provider, message_model))
             completed_at = time.time()
             elapsed = "GREATEST(0,?-started_at)" if self.database.is_postgres else "MAX(0,?-started_at)"
-            self.database.execute(f"UPDATE chat_turns SET state='completed',completed_at=?,duration_seconds={elapsed} WHERE conversation_id=? AND request_id=?", (completed_at, completed_at, identifier, request_id))
+            updated = self.database.execute(
+                f"UPDATE chat_turns SET state='completed',completed_at=?,duration_seconds={elapsed} "
+                "WHERE conversation_id=? AND request_id=? AND state='pending' AND lease_id=?",
+                (completed_at, completed_at, identifier, request_id, lease_id),
+            )
+            released = self.database.execute("DELETE FROM active_chat_work WHERE user_mail=? AND lease_id=?", (mail, lease_id))
+            if updated != 1 or released != 1:
+                raise TurnConflictError("La reserva de esta respuesta venció. Volvé a enviar la consulta.")
+            self.database.execute(
+                "INSERT INTO quota_usage(user_mail,conversation_id,request_id,completed_at,duration_seconds,personal_question) "
+                "SELECT conversations.user_mail,turns.conversation_id,turns.request_id,turns.completed_at,turns.duration_seconds,? "
+                "FROM chat_turns AS turns JOIN conversations ON conversations.id=turns.conversation_id "
+                "WHERE conversations.user_mail=? AND turns.conversation_id=? AND turns.request_id=? "
+                "ON CONFLICT(user_mail,conversation_id,request_id) DO NOTHING",
+                (bool(isinstance(classification, dict) and classification.get("label") in {"personal_informativa", "personal_decision"}), mail, identifier, request_id),
+            )
+            self.database.execute("DELETE FROM quota_usage WHERE user_mail=? AND completed_at<?", (mail, completed_at - 86400))
             self.database.execute("UPDATE conversations SET title=CASE WHEN title='Nuevo chat' THEN ? ELSE title END,updated_at=? WHERE id=?", (prompt[:70], timestamp, identifier))
 
-    def fail(self, identifier, request_id):
-        self.database.execute("UPDATE chat_turns SET state='failed' WHERE conversation_id=? AND request_id=? AND state='pending'", (identifier, request_id))
+    def fail(self, mail, identifier, request_id, lease_id):
+        with self.database.transaction():
+            self.database.execute(
+                "UPDATE chat_turns SET state='failed' WHERE conversation_id=? AND request_id=? AND state='pending' AND lease_id=?",
+                (identifier, request_id, lease_id),
+            )
+            self.database.execute("DELETE FROM active_chat_work WHERE user_mail=? AND lease_id=?", (mail, lease_id))

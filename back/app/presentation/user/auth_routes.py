@@ -10,18 +10,19 @@ from functools import partial
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from fastapi import APIRouter, Depends, Request as FastAPIRequest
+from fastapi import APIRouter, Depends, HTTPException, Request as FastAPIRequest
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.application.user.complete_google_registration import CompleteGoogleRegistration
 from app.application.user.google_auth import GoogleAuth, GoogleCompletionRequired
 from app.application.user.login_with_password import InvalidCredentialsError, LoginWithPassword
 from app.application.user.register_user import DuplicateMailError, RegisterUser
-from app.application.user.session import ACCESS_TOKEN_TTL_SECONDS, parse_access_token
+from app.application.user.session import ACCESS_TOKEN_TTL_SECONDS, parse_access_token_claims
 from .auth_schemas import GoogleRegistrationCompletionRequest, LoginRequest, RegisterRequest
-from .dependencies import credential_repo, external_link_repo, user_repo
+from .dependencies import abuse_limits, credential_repo, external_link_repo, user_repo
 from .errors import error_response, validation_error_response
 from .serializers import user_profile
+from app.infrastructure.abuse_limits import AbuseLimitExceeded
 
 router = APIRouter(tags=["Auth"])
 
@@ -187,7 +188,7 @@ def google_start():
 
 
 @router.get("/auth/google/callback")
-def google_callback(request: FastAPIRequest, code: str | None = None, state: str | None = None, error: str | None = None, users=Depends(user_repo), links=Depends(external_link_repo)):
+def google_callback(request: FastAPIRequest, code: str | None = None, state: str | None = None, error: str | None = None, users=Depends(user_repo), links=Depends(external_link_repo), credentials=Depends(credential_repo)):
     transaction = decode_google_payload(request.cookies.get("bloqia_google_state"), "google-transaction")
     expected_state = transaction.get("state") if transaction else None
     nonce = transaction.get("nonce") if transaction else None
@@ -205,7 +206,7 @@ def google_callback(request: FastAPIRequest, code: str | None = None, state: str
         return response
     try:
         identity = google_identity(code, nonce)
-        user, token = GoogleAuth(users, links).complete(identity["sub"], state, identity["email"])
+        user, token = GoogleAuth(users, links, credentials=credentials).complete(identity["sub"], state, identity["email"])
         result = {"user": user_profile(user), "accessToken": token, "expiresInSeconds": ACCESS_TOKEN_TTL_SECONDS}
     except GoogleCompletionRequired as exc:
         result = {"registrationToken": exc.registration_token, "missingFields": exc.missing_fields, "prefilledFields": exc.prefilled_fields}
@@ -223,10 +224,16 @@ def google_callback(request: FastAPIRequest, code: str | None = None, state: str
 
 
 @router.get("/auth/google/session")
-def google_session(request: FastAPIRequest):
+def google_session(request: FastAPIRequest, users=Depends(user_repo)):
     result = decode_result(request.cookies.get("bloqia_google_result"))
     if not result:
         raise error_response("Google session is missing or expired", 401)
+    token = result.get("accessToken")
+    if token:
+        claims = parse_access_token_claims(token)
+        user = users.get(claims.get("sub")) if claims else None
+        if user is None or claims.get("ver", 0) != user.auth_version:
+            raise error_response("Google session is missing or expired", 401)
     response = JSONResponse(result)
     response.headers["Cache-Control"] = "no-store"
     response.delete_cookie("bloqia_google_result")
@@ -236,15 +243,32 @@ def google_session(request: FastAPIRequest):
 @router.get("/auth/session")
 def session(request: FastAPIRequest, users=Depends(user_repo)):
     token = request.cookies.get(SESSION_COOKIE_NAME)
-    mail = parse_access_token(token) if token else None
-    user = users.get(mail) if mail else None
+    claims = parse_access_token_claims(token) if token else None
+    user = users.get(claims.get("sub")) if claims else None
+    if user is not None and claims.get("ver", 0) != user.auth_version:
+        user = None
     if not user:
         raise error_response("Session is missing or expired", 401)
     return authenticated_response(user, token)
 
 
 @router.post("/auth/logout", status_code=204)
-def logout():
+def logout(request: FastAPIRequest, users=Depends(user_repo)):
+    candidates = []
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("bearer "):
+        candidates.append(authorization.split(" ", 1)[1])
+    session = request.cookies.get(SESSION_COOKIE_NAME)
+    if session:
+        candidates.append(session)
+    for token in candidates:
+        claims = parse_access_token_claims(token)
+        if not claims:
+            continue
+        user = users.get(claims.get("sub"))
+        if user is not None and claims.get("ver", 0) == user.auth_version:
+            users.revoke_sessions(user.mail, user.auth_version)
+            break
     response = JSONResponse(content=None, status_code=204)
     response.headers["Cache-Control"] = "no-store"
     response.delete_cookie(SESSION_COOKIE_NAME, path="/")
@@ -254,22 +278,28 @@ def logout():
 
 
 @router.post("/auth/register", status_code=201)
-def register(payload: RegisterRequest, users=Depends(user_repo), credentials=Depends(credential_repo)):
+def register(payload: RegisterRequest, users=Depends(user_repo), credentials=Depends(credential_repo), limits=Depends(abuse_limits)):
     try:
-        user, token = RegisterUser(users, credentials).execute(payload.mail, payload.password, payload.age, payload.profession)
+        user, token = RegisterUser(users, credentials, limits).execute(payload.mail, payload.password, payload.age, payload.profession)
         return authenticated_response(user, token, status_code=201)
     except DuplicateMailError:
         raise error_response("Mail already registered", 409)
+    except AbuseLimitExceeded as exc:
+        headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else None
+        raise HTTPException(429, detail={"message": str(exc)}, headers=headers)
     except ValueError as exc:
         raise validation_error_response(str(exc), {"password": str(exc)})
 
 
 @router.post("/auth/register/complete-google", status_code=201)
-def complete_google_registration(payload: GoogleRegistrationCompletionRequest, users=Depends(user_repo), links=Depends(external_link_repo)):
+def complete_google_registration(payload: GoogleRegistrationCompletionRequest, users=Depends(user_repo), links=Depends(external_link_repo), limits=Depends(abuse_limits)):
     try:
-        user, token = CompleteGoogleRegistration(users, links).execute(payload.registrationToken, payload.age, payload.profession)
+        user, token = CompleteGoogleRegistration(users, links, limits).execute(payload.registrationToken, payload.age, payload.profession)
         return authenticated_response(user, token, status_code=201)
     except DuplicateMailError:
         raise error_response("Mail already registered", 409)
+    except AbuseLimitExceeded as exc:
+        headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else None
+        raise HTTPException(429, detail={"message": str(exc)}, headers=headers)
     except ValueError as exc:
         raise validation_error_response(str(exc), {"registration": str(exc)})

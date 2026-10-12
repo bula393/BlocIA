@@ -5,6 +5,7 @@ from app.domain.user.password_credential import PasswordCredential
 from app.domain.user.user import User
 from app.infrastructure.user.postgres_repositories import STORE, UserRepositoryImpl, PasswordCredentialRepositoryImpl, ExternalLoginLinkRepositoryImpl, AIProviderRepositoryImpl, AIModelRepositoryImpl, ProviderTokenRepositoryImpl, UsageEventRepositoryImpl
 from app.presentation.user import dependencies
+from app.infrastructure.abuse_limits import AbuseLimitRepository, InMemoryAbuseLimitRepository
 from app.main import create_app
 
 
@@ -25,6 +26,9 @@ def client():
     app = create_app()
     for dependency, repository in [(dependencies.user_repo, UserRepositoryImpl), (dependencies.credential_repo, PasswordCredentialRepositoryImpl), (dependencies.external_link_repo, ExternalLoginLinkRepositoryImpl), (dependencies.provider_repo, AIProviderRepositoryImpl), (dependencies.model_repo, AIModelRepositoryImpl), (dependencies.token_repo, ProviderTokenRepositoryImpl), (dependencies.usage_repo, UsageEventRepositoryImpl)]:
         app.dependency_overrides[dependency] = lambda repository=repository: repository(STORE)
+    limits = InMemoryAbuseLimitRepository()
+    app.dependency_overrides[dependencies.abuse_limits] = lambda: limits
+    app.state.test_abuse_limits = limits
     return TestClient(app)
 
 
@@ -63,7 +67,9 @@ def email_verifier(client, seeded_user, tmp_path):
     UserRepository(database).save(seeded_user)
     sender = CaptureSender()
     clock = [1800000000.0]
-    verifier = VerifyEmail(EmailVerificationRepository(database), sender, "test-verification-secret-at-least-32-characters", lambda: clock[0])
+    verifier = VerifyEmail(EmailVerificationRepository(database), sender,
+                           "test-verification-secret-at-least-32-characters", lambda: clock[0],
+                           abuse_limits=AbuseLimitRepository(database, lambda: clock[0]))
     client.app.dependency_overrides[dependencies.email_verification] = lambda: verifier
     return verifier, sender, clock
 

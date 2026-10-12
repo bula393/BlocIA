@@ -98,6 +98,25 @@ def test_resend_cooldown_daily_limit_and_concurrent_requests(email_verifier, see
     assert len(sender.messages) == 11
 
 
+def test_global_email_budget_cannot_be_reset_with_new_accounts(email_verifier, seeded_user, monkeypatch):
+    from app.infrastructure.user.sqlite_repositories import UserRepository
+
+    verifier, sender, clock = email_verifier
+    other = User(mail="other@example.com", age=22, profession="Docente")
+    UserRepository(verifier.repository.database).save(other)
+    monkeypatch.setenv("BLOCIA_VERIFICATION_EMAIL_MAX_PER_DAY", "1")
+
+    verifier.request(seeded_user.mail)
+    clock[0] += 60
+    with pytest.raises(EmailVerificationError) as error:
+        verifier.request(other.mail)
+
+    assert error.value.status_code == 429
+    assert error.value.retry_after is not None
+    assert len(sender.messages) == 1
+    assert verifier.repository.get(other.mail) is None
+
+
 def test_code_is_bound_to_account_and_sender_failure_does_not_verify(email_verifier, seeded_user):
     verifier, sender, clock = email_verifier
     other = User(mail="other@example.com", age=22, profession="Docente")

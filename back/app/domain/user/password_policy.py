@@ -1,8 +1,15 @@
+import base64
 import hashlib
+import hmac
+import secrets
 import re
 
 
 class PasswordPolicy:
+    HASH_SCHEME = "pbkdf2_sha256"
+    HASH_ITERATIONS = 600_000
+    HASH_SALT_BYTES = 16
+
     @staticmethod
     def validate(password: str, mail: str) -> None:
         errors: list[str] = []
@@ -22,8 +29,44 @@ class PasswordPolicy:
 
     @staticmethod
     def hash_password(password: str) -> str:
-        return hashlib.sha256(password.encode("utf-8")).hexdigest()
+        salt = secrets.token_bytes(PasswordPolicy.HASH_SALT_BYTES)
+        digest = hashlib.pbkdf2_hmac(
+            "sha256", password.encode("utf-8"), salt, PasswordPolicy.HASH_ITERATIONS
+        )
+        salt_text = base64.urlsafe_b64encode(salt).decode("ascii").rstrip("=")
+        digest_text = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+        return f"{PasswordPolicy.HASH_SCHEME}${PasswordPolicy.HASH_ITERATIONS}${salt_text}${digest_text}"
 
     @staticmethod
     def verify(password: str, password_hash: str) -> bool:
-        return PasswordPolicy.hash_password(password) == password_hash
+        if not isinstance(password_hash, str):
+            return False
+        if not password_hash.startswith(f"{PasswordPolicy.HASH_SCHEME}$"):
+            # Existing accounts keep working and are upgraded after their next
+            # successful login. Compare the legacy digest in constant time.
+            legacy = hashlib.sha256(password.encode("utf-8")).hexdigest()
+            return hmac.compare_digest(legacy, password_hash)
+        try:
+            scheme, rounds_text, salt_text, digest_text = password_hash.split("$", 3)
+            rounds = int(rounds_text)
+            if (scheme != PasswordPolicy.HASH_SCHEME or rounds < 100_000
+                    or rounds > PasswordPolicy.HASH_ITERATIONS):
+                return False
+            salt = base64.urlsafe_b64decode(salt_text + "=" * (-len(salt_text) % 4))
+            expected = base64.urlsafe_b64decode(digest_text + "=" * (-len(digest_text) % 4))
+            if len(salt) < PasswordPolicy.HASH_SALT_BYTES or len(expected) != 32:
+                return False
+            actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, rounds)
+            return hmac.compare_digest(actual, expected)
+        except (ValueError, TypeError, UnicodeError):
+            return False
+
+    @staticmethod
+    def needs_rehash(password_hash: str) -> bool:
+        if not isinstance(password_hash, str) or not password_hash.startswith(f"{PasswordPolicy.HASH_SCHEME}$"):
+            return True
+        try:
+            scheme, rounds_text, _, _ = password_hash.split("$", 3)
+            return scheme != PasswordPolicy.HASH_SCHEME or int(rounds_text) < PasswordPolicy.HASH_ITERATIONS
+        except (ValueError, TypeError):
+            return True

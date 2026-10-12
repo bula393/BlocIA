@@ -41,6 +41,15 @@ def test_readiness_requires_classifier_and_exposes_release_only(monkeypatch, tmp
     assert client.get("/ready").json()["ready"] is True
 
 
+def test_google_oauth_does_not_require_an_additional_production_secret(monkeypatch):
+    production_environment(monkeypatch)
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "client-id")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "client-secret")
+    monkeypatch.delenv("GOOGLE_REGISTRATION_SECRET", raising=False)
+
+    assert RuntimeSettings.from_environment().production is True
+
+
 def test_readiness_includes_the_private_inference_release_when_available(monkeypatch, tmp_path):
     from app.infrastructure.database import Database, get_database
     monkeypatch.setenv("ENVIRONMENT", "development")

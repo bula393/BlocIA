@@ -90,6 +90,17 @@ def validate_compose() -> None:
     for service in ("frontend", "api", "inference"):
         image = production["services"][service].get("image", "")
         validate_release_image(image, service, f"all-in-one Dokploy {service}")
+    abuse_budgets = {
+        "BLOCIA_REGISTRATION_MAX_PER_DAY",
+        "BLOCIA_MAX_ACCOUNTS",
+        "BLOCIA_VERIFICATION_EMAIL_MAX_PER_DAY",
+        "BLOCIA_CLASSIFICATION_MAX_PER_USER_PER_DAY",
+        "BLOCIA_CLASSIFICATION_MAX_PER_DAY",
+        "BLOCIA_SHARED_PROVIDER_MAX_PER_DAY",
+    }
+    for label, compose in (("all-in-one Dokploy", production), ("separate Dokploy API", load_mapping("deploy/api/compose.yaml"))):
+        declared = compose.get("services", {}).get("api", {}).get("environment", {})
+        require(abuse_budgets <= declared.keys(), f"{label}: API must receive every persistent abuse budget")
     separate_networks = {
         validate_separate_service(load_mapping(f"deploy/{service}/compose.yaml"), service)
         for service in ("inference", "api", "frontend")

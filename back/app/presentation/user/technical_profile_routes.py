@@ -6,7 +6,8 @@ from app.application.user.remove_provider_token import RemoveProviderToken
 from app.application.user.save_provider_token import ProviderUnavailableError, SaveProviderToken
 from app.application.chat.default_provider_tokens import default_provider_token
 from app.application.user.verify_email import EmailVerificationError
-from .dependencies import current_user_mail, email_verification, model_repo, provider_repo, token_repo, usage_repo
+from app.application.user.google_ai_client import GoogleConnectionError
+from .dependencies import current_user_mail, email_verification, google_ai_connection, model_repo, provider_repo, token_repo, usage_repo
 from .errors import error_response, validation_error_response
 from .serializers import provider_schema, token_status
 from .technical_profile_schemas import EmailVerificationConfirmRequest, ProviderTokenSaveRequest
@@ -42,20 +43,31 @@ def confirm_email_verification(payload: EmailVerificationConfirmRequest, mail: s
 
 
 @router.get("/technical-profile/providers")
-def list_providers(mail: str = Depends(current_user_mail), providers=Depends(provider_repo), models=Depends(model_repo), tokens=Depends(token_repo)):
+def list_providers(mail: str = Depends(current_user_mail), providers=Depends(provider_repo), models=Depends(model_repo), tokens=Depends(token_repo), google=Depends(google_ai_connection)):
     rows = ListTechnicalProviders(providers, models, tokens).execute(mail)
-    return {"providers": [provider_schema(
-        row["provider"],
-        row["models"],
-        token_status(row["provider"].provider_id, row["token_status"].value, row["token"]),
-        bool(default_provider_token(row["provider"].provider_id)),
-    ) for row in rows]}
+    result = []
+    for row in rows:
+        provider_id = row["provider"].provider_id
+        item = provider_schema(row["provider"], row["models"], token_status(provider_id, row["token_status"].value, row["token"]), bool(default_provider_token(provider_id)))
+        if provider_id == "google":
+            item["oauthConnection"] = google.status(mail)
+        result.append(item)
+    return {"providers": result}
 
 
 @router.get("/technical-profile/providers/{provider_id}/models")
-def list_available_models(provider_id: str, mail: str = Depends(current_user_mail), providers=Depends(provider_repo), models=Depends(model_repo), tokens=Depends(token_repo), usage=Depends(usage_repo)):
+def list_available_models(provider_id: str, mail: str = Depends(current_user_mail), providers=Depends(provider_repo), models=Depends(model_repo), tokens=Depends(token_repo), usage=Depends(usage_repo), google=Depends(google_ai_connection)):
     try:
-        result = ListAvailableModels(providers, models, tokens).execute(mail, provider_id)
+        credential = None
+        if provider_id == "google":
+            status = google.status(mail)
+            if status["connected"] and not status["ready"]:
+                message = "La conexión con cuenta Google está deshabilitada en esta instalación. Podés desconectarla para usar una clave API."
+                if status["available"]:
+                    message = "Volvé a conectar tu cuenta Google." if status["needsReconnect"] else "Cuenta Google conectada. Elegí y comprobá un proyecto para usar Gemini."
+                return {"providerId": "google", "source": "oauth", "message": message, "models": []}
+            credential = google.credential(mail)
+        result = ListAvailableModels(providers, models, tokens).execute(mail, provider_id, credential)
         usage.record(UsageEvent(mail, "model_catalog_requested", provider_id))
         return {
             "providerId": result.provider_id,
@@ -73,6 +85,8 @@ def list_available_models(provider_id: str, mail: str = Depends(current_user_mai
         }
     except ProviderModelsUnavailableError as exc:
         raise error_response(str(exc), 502)
+    except GoogleConnectionError as exc:
+        raise error_response(str(exc), exc.status)
 
 
 @router.post("/technical-profile/tokens")

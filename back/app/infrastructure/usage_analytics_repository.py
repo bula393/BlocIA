@@ -39,7 +39,6 @@ class UsageAnalyticsRepository:
         return f"json_extract({column},'$.label')"
 
     def _period_totals(self, mail, now):
-        label = self._label("messages.classification")
         reset_rows = self.database.query(
             "SELECT MAX(reset_at) AS reset_at FROM user_usage_resets WHERE user_mail=? AND reset_at<=?",
             (mail, now),
@@ -47,20 +46,26 @@ class UsageAnalyticsRepository:
         last_reset = reset_rows[0]["reset_at"] if reset_rows else None
         cutoff = max(now - USAGE_WINDOW_SECONDS, float(last_reset) if last_reset is not None else 0)
         rows = self.database.query(
-            "SELECT COALESCE(SUM(turns.duration_seconds),0) AS seconds "
-            "FROM chat_turns AS turns JOIN conversations ON conversations.id=turns.conversation_id "
-            "WHERE conversations.user_mail=? AND turns.state='completed' AND turns.completed_at>?",
+            "SELECT COALESCE(SUM(CASE WHEN turns.completed_at IS NULL THEN quota_usage.duration_seconds ELSE turns.duration_seconds END),0) AS seconds "
+            "FROM quota_usage LEFT JOIN chat_turns AS turns ON turns.conversation_id=quota_usage.conversation_id "
+            "AND turns.request_id=quota_usage.request_id "
+            "WHERE quota_usage.user_mail=? AND COALESCE(turns.completed_at,quota_usage.completed_at)>?",
             (mail, cutoff),
         )
         personal = self.database.query(
-            "SELECT COUNT(*) AS questions FROM messages "
-            "JOIN conversations ON conversations.id=messages.conversation_id "
-            "JOIN chat_turns AS turns ON turns.conversation_id=messages.conversation_id AND turns.request_id=messages.request_id "
-            "WHERE conversations.user_mail=? AND messages.role='user' AND turns.state='completed' "
-            f"AND turns.completed_at>? AND {label} IN ('personal_informativa','personal_decision')",
+            "SELECT COUNT(*) AS questions FROM quota_usage "
+            "LEFT JOIN chat_turns AS turns ON turns.conversation_id=quota_usage.conversation_id "
+            "AND turns.request_id=quota_usage.request_id "
+            "WHERE quota_usage.user_mail=? AND COALESCE(turns.completed_at,quota_usage.completed_at)>? "
+            "AND quota_usage.personal_question=TRUE",
             (mail, cutoff),
         )
         return round(float(rows[0]["seconds"] or 0)), int(personal[0]["questions"] or 0)
+
+    def lock_account(self, mail):
+        """Serialize quota admission for one account on PostgreSQL."""
+        if self.database.is_postgres:
+            self.database.query("SELECT mail FROM users WHERE mail=? FOR UPDATE", (mail,))
 
     @staticmethod
     def _threshold_reasons(usage_seconds, personal_questions):

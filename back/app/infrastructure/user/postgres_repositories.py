@@ -65,7 +65,7 @@ class PersistentUserStore(InMemoryUserStore):
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
             self.users = {
-                mail: User(mail=mail, age=data["age"], profession=data["profession"], password_status=data["passwordStatus"], display_name=data.get("displayName"), login_provider_status=LoginProviderStatus(data["loginProviderStatus"]), technical_profile_status=TechnicalProfileStatus(data["technicalProfileStatus"]), created_at=self._datetime(data["createdAt"]) or User(mail=mail, age=1, profession="_").created_at, updated_at=self._datetime(data["updatedAt"]) or User(mail=mail, age=1, profession="_").updated_at)
+                mail: User(mail=mail, age=data["age"], profession=data["profession"], password_status=data["passwordStatus"], auth_version=data.get("authVersion", 0), display_name=data.get("displayName"), login_provider_status=LoginProviderStatus(data["loginProviderStatus"]), technical_profile_status=TechnicalProfileStatus(data["technicalProfileStatus"]), created_at=self._datetime(data["createdAt"]) or User(mail=mail, age=1, profession="_").created_at, updated_at=self._datetime(data["updatedAt"]) or User(mail=mail, age=1, profession="_").updated_at)
                 for mail, data in payload.get("users", {}).items()
             }
             self.credentials = {mail: PasswordCredential(mail, data["passwordHash"], self._datetime(data["createdAt"]) or datetime.now(), self._datetime(data["updatedAt"]) or datetime.now()) for mail, data in payload.get("credentials", {}).items()}
@@ -80,7 +80,7 @@ class PersistentUserStore(InMemoryUserStore):
     def flush(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
-            "users": {mail: {"age": user.age, "profession": user.profession, "passwordStatus": user.password_status, "displayName": user.display_name, "loginProviderStatus": user.login_provider_status.value, "technicalProfileStatus": user.technical_profile_status.value, "createdAt": user.created_at.isoformat(), "updatedAt": user.updated_at.isoformat()} for mail, user in self.users.items()},
+            "users": {mail: {"age": user.age, "profession": user.profession, "passwordStatus": user.password_status, "authVersion": user.auth_version, "displayName": user.display_name, "loginProviderStatus": user.login_provider_status.value, "technicalProfileStatus": user.technical_profile_status.value, "createdAt": user.created_at.isoformat(), "updatedAt": user.updated_at.isoformat()} for mail, user in self.users.items()},
             "credentials": {mail: {"passwordHash": credential.password_hash, "createdAt": credential.created_at.isoformat(), "updatedAt": credential.updated_at.isoformat()} for mail, credential in self.credentials.items()},
             "externalLinks": [{"userMail": link.user_mail, "provider": link.provider, "externalSubject": link.external_subject, "providedMail": link.provided_mail, "providedDisplayName": link.provided_display_name, "createdAt": link.created_at.isoformat(), "lastUsedAt": link.last_used_at.isoformat() if link.last_used_at else None} for link in self.external_links.values()],
             "providers": {provider_id: {"name": provider.name, "status": provider.status.value, "description": provider.description} for provider_id, provider in self.providers.items()},
@@ -125,8 +125,24 @@ class UserRepositoryImpl:
         flush(self.store)
         return user
 
+    def create(self, user: User) -> bool:
+        user.validate()
+        if user.mail in self.store.users:
+            return False
+        self.store.users[user.mail] = user
+        flush(self.store)
+        return True
+
     def exists(self, mail: str) -> bool:
         return mail in self.store.users
+
+    def revoke_sessions(self, mail: str, expected_version: int) -> bool:
+        user = self.get(mail)
+        if user is None or user.auth_version != expected_version:
+            return False
+        user.auth_version += 1
+        self.save(user)
+        return True
 
 
 class PasswordCredentialRepositoryImpl:
@@ -141,6 +157,11 @@ class PasswordCredentialRepositoryImpl:
         flush(self.store)
         return credential
 
+    def delete(self, user_mail: str) -> bool:
+        removed = self.store.credentials.pop(user_mail, None) is not None
+        flush(self.store)
+        return removed
+
 
 class ExternalLoginLinkRepositoryImpl:
     def __init__(self, store: InMemoryUserStore | None = None):
@@ -153,6 +174,14 @@ class ExternalLoginLinkRepositoryImpl:
         self.store.external_links[(link.provider, link.external_subject)] = link
         flush(self.store)
         return link
+
+    def create(self, link: ExternalLoginLink) -> bool:
+        key = (link.provider, link.external_subject)
+        if key in self.store.external_links:
+            return False
+        self.store.external_links[key] = link
+        flush(self.store)
+        return True
 
 
 class AIProviderRepositoryImpl:

@@ -20,6 +20,7 @@ class User:
     age: int
     profession: str
     password_status: bool = False
+    auth_version: int = 0
     display_name: str | None = None
     login_provider_status: LoginProviderStatus = LoginProviderStatus.PASSWORD
     technical_profile_status: TechnicalProfileStatus = TechnicalProfileStatus.NOT_CONFIGURED

@@ -9,10 +9,11 @@ import { listAvailableModels } from '../api/technicalProfile';
 import { ApiRequestError } from '../api/client';
 import { Icon } from '../mockup/brand';
 import { EmailVerification } from '../features/usuario/components/EmailVerification';
+import { GoogleAccountConnection } from '../features/usuario/components/GoogleAccountConnection';
 import type { AIModel, ProviderWithModels } from '../types/dominio';
 
 const guides: Record<string, { tier: string; detail: string; keys: string; conditions: string }> = {
-  google: { tier: 'Nivel gratuito', detail: 'Usá tu cuenta Google en AI Studio y una clave de un proyecto Free Tier. Los cupos dependen del modelo.', keys: 'https://aistudio.google.com/app/apikey', conditions: 'https://ai.google.dev/gemini-api/docs/pricing' },
+  google: { tier: 'Cuenta personal o clave API', detail: 'Conectá tu cuenta para usar Gemini. Los cupos y posibles cargos corresponden al proyecto que elijas en Google.', keys: 'https://aistudio.google.com/app/apikey', conditions: 'https://ai.google.dev/gemini-api/docs/pricing' },
   groq: { tier: 'Plan gratuito', detail: 'Groq ofrece un plan gratuito con límites por modelo. Revisá el plan de tu cuenta antes de usar la clave.', keys: 'https://console.groq.com/keys', conditions: 'https://console.groq.com/docs/rate-limits' },
   openrouter: { tier: 'Modelos gratuitos', detail: 'BloqIA muestra y envía sólo a rutas gratuitas de OpenRouter. El plan gratis tiene un cupo diario.', keys: 'https://openrouter.ai/settings/keys', conditions: 'https://openrouter.ai/pricing' },
   openai: { tier: 'API con facturación propia', detail: 'Una clave de la plataforma OpenAI usa tu proyecto de API. El plan ChatGPT Plus o Pro utiliza otra conexión.', keys: 'https://platform.openai.com/api-keys', conditions: 'https://developers.openai.com/api/docs/pricing' },
@@ -31,7 +32,7 @@ function providerMark(providerId: string) {
 }
 
 function modelPurpose(providerId: string, model: AIModel) {
-  if (providerId === 'google') return 'Cuota de texto habilitada en el proyecto; sujeta a límites de consumo';
+    if (providerId === 'google') return 'Modelo de texto; el acceso y el cupo dependen del proyecto elegido';
   if (providerId === 'openrouter') return 'Ruta gratuita de OpenRouter, sujeta a los límites de tu cuenta';
   if (providerId === 'groq') return 'Modelo de Groq; verificá el cupo de tu plan';
   if (providerId === 'anthropic') {
@@ -55,7 +56,7 @@ function ModelCatalog({ provider, models }: { provider: ProviderWithModels; mode
       <div className="model-card__content">
         <div className="model-card__heading">
           <div><h4>{model.displayName}</h4><code className="model-id">{model.modelId}</code></div>
-          <span className="model-availability">{provider.providerId === 'google' ? 'Cuota habilitada' : 'En catálogo'}</span>
+          <span className="model-availability">En catálogo</span>
         </div>
         <p>{modelPurpose(provider.providerId, model)}</p>
         <div className="model-meta">{model.capabilities.map((capability) => <span className="model-chip" key={capability}>{capability}</span>)}</div>
@@ -76,7 +77,7 @@ function ProviderSection({ provider, token, setToken, save, remove, emailVerifie
   emailVerified: boolean;
 }) {
   const mobile = useMobileViewport();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => provider.providerId === 'google' && new URLSearchParams(window.location.search).has('google'));
   const guide = guides[provider.providerId];
   const catalog = useQuery({
     queryKey: ['available-models', provider.providerId],
@@ -85,6 +86,7 @@ function ProviderSection({ provider, token, setToken, save, remove, emailVerifie
   });
   const configured = provider.tokenStatus.status === 'configured';
   const defaultAvailable = Boolean(provider.defaultTokenAvailable);
+  const accountConnected = Boolean(provider.oauthConnection?.connected);
   const displayedModels = catalog.isError ? [] : catalog.data?.models ?? (provider.providerId === 'google' ? [] : provider.models);
   const saving = save.isPending && save.variables?.providerId === provider.providerId;
   const removing = remove.isPending && remove.variables === provider.providerId;
@@ -92,27 +94,36 @@ function ProviderSection({ provider, token, setToken, save, remove, emailVerifie
     ? catalog.error.message
     : 'No se pudo consultar el catálogo. Revisá la conexión del servidor y la clave del proveedor.';
 
+  const apiKeyFields = <>
+    <label className="provider-token-field"><span>Clave API de {providerLabel(provider)}</span><input aria-label={`Clave API ${providerLabel(provider)}`} value={token} onChange={(event) => setToken(event.target.value)} placeholder="Pegá tu clave API personal" type="password" autoComplete="off" spellCheck={false} disabled={accountConnected} /></label>
+    <p className="provider-secret-help">{accountConnected ? 'Para usar una clave API, desconectá primero tu cuenta Google.' : 'Pegá una clave API de este proveedor. No ingreses tu contraseña de Google, ChatGPT ni Claude.'}</p>
+    {!emailVerified && <p className="provider-verification-help" id={`verification-help-${provider.providerId}`}><a href="#verificacion-correo">Verificá tu correo</a> antes de guardar o cambiar esta clave.</p>}
+    <div className="bloq-actions"><button type="button" onClick={() => remove.mutate(provider.providerId)} disabled={!configured || removing}>Quitar clave</button><button type="button" data-primary="true" onClick={() => save.mutate({ providerId: provider.providerId, token: token.trim() }, { onSuccess: () => setToken('') })} aria-describedby={!emailVerified ? `verification-help-${provider.providerId}` : undefined} disabled={accountConnected || !emailVerified || !token.trim() || saving}>{saving ? 'Guardando…' : 'Conectar clave'}</button></div>
+  </>;
+  const modelCatalog = <>
+    <div className="model-catalog__header"><h3>Modelos del proveedor</h3><button type="button" className="model-refresh" onClick={() => void catalog.refetch()} disabled={catalog.isFetching}>Actualizar catálogo</button></div>
+    {catalog.isFetching && <p role="status">Cargando modelos...</p>}
+    {catalog.isError && <Notice key={catalog.errorUpdatedAt} className="bloq-error">{catalogError}</Notice>}
+    {catalog.data && <p className="model-catalog__note" data-state={['token', 'default', 'oauth'].includes(catalog.data.source) ? 'safe' : 'attention'}>{catalog.data.message}</p>}
+    {displayedModels.length > 0 && <ModelCatalog provider={provider} models={displayedModels} />}
+  </>;
   const content = <div className="provider-section">
     <header className="provider-section__header">
       <div className="provider-heading"><span className={`provider-mark provider-mark--${provider.providerId}`} aria-hidden="true">{providerMark(provider.providerId)}</span><h2>{providerLabel(provider)}</h2></div>
       {guide && <span className="provider-tier">{guide.tier}</span>}
     </header>
-    {guide && <div className="provider-guide"><p>{guide.detail}</p><div className="provider-guide__links"><a href={guide.keys} target="_blank" rel="noopener noreferrer">Abrir consola de claves <Icon name="arrow-up-right" size={14} /></a><a href={guide.conditions} target="_blank" rel="noopener noreferrer">Ver condiciones y cupos <Icon name="arrow-up-right" size={14} /></a></div></div>}
-    <div className="provider-connection">
-      <div><span>Credencial activa</span><strong>{configured ? `Clave personal guardada: ${provider.tokenStatus.maskedTokenLabel ?? '••••'}` : defaultAvailable ? 'Token predeterminado del proyecto' : 'Sin clave configurada'}</strong></div>
-    </div>
-    <div className="model-catalog__header"><h3>Modelos del proveedor</h3><button type="button" className="model-refresh" onClick={() => void catalog.refetch()} disabled={catalog.isFetching}>Actualizar catálogo</button></div>
-    {catalog.isFetching && <p role="status">Cargando modelos...</p>}
-    {catalog.isError && <Notice key={catalog.errorUpdatedAt} className="bloq-error">{catalogError}</Notice>}
-    {catalog.data && <p className="model-catalog__note" data-state={catalog.data.source === 'token' || catalog.data.source === 'default' ? 'safe' : 'attention'}>{catalog.data.message}</p>}
-    {displayedModels.length > 0 && <ModelCatalog provider={provider} models={displayedModels} />}
-    <label className="provider-token-field"><span>Clave API de {providerLabel(provider)}</span><input aria-label={`Clave API ${providerLabel(provider)}`} value={token} onChange={(event) => setToken(event.target.value)} placeholder="Pegá tu clave API personal" type="password" autoComplete="off" spellCheck={false} /></label>
-    <p className="provider-secret-help">Pegá una clave API de este proveedor. No ingreses tu contraseña de Google, ChatGPT ni Claude.</p>
-    {!emailVerified && <p className="provider-verification-help" id={`verification-help-${provider.providerId}`}><a href="#verificacion-correo">Verificá tu correo</a> antes de guardar o cambiar esta clave.</p>}
-    <div className="bloq-actions"><button type="button" onClick={() => remove.mutate(provider.providerId)} disabled={!configured || removing}>Quitar clave</button><button type="button" data-primary="true" onClick={() => save.mutate({ providerId: provider.providerId, token: token.trim() }, { onSuccess: () => setToken('') })} aria-describedby={!emailVerified ? `verification-help-${provider.providerId}` : undefined} disabled={!emailVerified || !token.trim() || saving}>{saving ? 'Guardando…' : 'Conectar clave'}</button></div>
+    {provider.providerId === 'google' && <GoogleAccountConnection emailVerified={emailVerified} />}
+    {guide && provider.providerId !== 'google' && <div className="provider-guide"><p>{guide.detail}</p><div className="provider-guide__links"><a href={guide.keys} target="_blank" rel="noopener noreferrer">Abrir consola de claves <Icon name="arrow-up-right" size={14} /></a><a href={guide.conditions} target="_blank" rel="noopener noreferrer">Ver condiciones y cupos <Icon name="arrow-up-right" size={14} /></a></div></div>}
+    {provider.providerId !== 'google' && <div className="provider-connection">
+      <div><span>Conexión para responder</span><strong>{accountConnected ? `Tu cuenta Google · ${provider.oauthConnection?.ready ? provider.oauthConnection.projectName : 'Configuración pendiente'}` : configured ? `Clave personal guardada: ${provider.tokenStatus.maskedTokenLabel ?? '••••'}` : defaultAvailable ? 'Conexión del proyecto BloqIA' : 'Sin conectar'}</strong></div>
+    </div>}
+    {provider.providerId === 'google' ? <>
+      <details className="provider-advanced provider-catalog-details"><summary>Ver modelos disponibles{displayedModels.length > 0 ? ` · ${displayedModels.length}` : ''}</summary>{modelCatalog}</details>
+      <details className="provider-advanced"><summary>Usar una clave API · avanzado</summary>{apiKeyFields}<a className="provider-advanced__link" href={guide.keys} target="_blank" rel="noopener noreferrer">Obtener una clave en Google AI Studio <Icon name="arrow-up-right" size={14} /></a></details>
+    </> : <>{modelCatalog}{apiKeyFields}</>}
   </div>;
   return mobile ? <section className="provider-mobile-row" id={`provider-${provider.providerId}`}>
-    <button type="button" className="provider-mobile-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog"><span className="provider-mark" aria-hidden="true">{providerMark(provider.providerId)}</span><span><strong>{providerLabel(provider)}</strong><small>{configured ? 'Clave personal conectada' : defaultAvailable ? 'Conexión del proyecto disponible' : 'Sin conectar'}</small></span><Icon name="chevron" size={17} /></button>
+    <button type="button" className="provider-mobile-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog"><span className="provider-mark" aria-hidden="true">{providerMark(provider.providerId)}</span><span><strong>{providerLabel(provider)}</strong><small>{accountConnected ? 'Cuenta Google conectada' : configured ? 'Clave personal conectada' : defaultAvailable ? 'Conexión del proyecto disponible' : 'Sin conectar'}</small></span><Icon name="chevron" size={17} /></button>
     <MobileSheet open={open} onClose={() => setOpen(false)} title={providerLabel(provider)}><div onClickCapture={(event) => { if ((event.target as HTMLElement).closest('a[href="#verificacion-correo"]')) setOpen(false); }}>{content}</div></MobileSheet>
   </section> : <section id={`provider-${provider.providerId}`}>{content}</section>;
 }
@@ -127,7 +138,7 @@ export function PerfilTecnico() {
   });
 
   return <ChasisBloqIA title="Perfil técnico" activePath="/perfil-tecnico" contentClassName="technical-profile-content">
-    <div className="technical-intro"><p className="provider-eyebrow">Configuración</p><h1>Proveedores y modelos</h1><p>Elegí cómo querés generar respuestas. Podés usar los tokens predeterminados del proyecto o conectar una clave personal.</p></div>
+    <div className="technical-intro"><h1>Proveedores y modelos</h1><p>Elegí cómo querés generar respuestas. Conectá tu cuenta Google, usá la conexión de BloqIA o agregá una clave personal.</p></div>
     <div className="provider-free-summary" aria-label="Opciones de uso gratuito">
       <div><span className="provider-local-mark" aria-hidden="true"><Icon name="layers" size={20} /></span><strong>Qwen local</strong><span>Sin cuenta ni clave</span><a href="/nuevo-chat">Usar en el chat <Icon name="arrow-up-right" size={15} /></a></div>
       <div><strong>Gemini</strong><span>Nivel gratuito según modelo</span><a href="#provider-google">Configurar</a></div>

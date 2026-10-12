@@ -1,4 +1,5 @@
 from app.domain.user.repositories import PasswordCredentialRepository, UserRepository
+from app.domain.user.password_policy import PasswordPolicy
 from .session import create_access_token
 
 
@@ -14,8 +15,11 @@ class LoginWithPassword:
     def execute(self, mail: str, password: str) -> tuple[object, str]:
         user = self.users.get(mail)
         credential = self.credentials.get(mail)
-        if user is None or credential is None or not credential.verify(password):
+        if user is None or not user.password_status or credential is None or not credential.verify(password):
             if credential is not None:
                 credential.register_invalid_attempt()
             raise InvalidCredentialsError("Invalid credentials")
-        return user, create_access_token(mail)
+        if credential.needs_rehash():
+            credential.password_hash = PasswordPolicy.hash_password(password)
+            self.credentials.save(credential)
+        return user, create_access_token(mail, auth_version=user.auth_version)

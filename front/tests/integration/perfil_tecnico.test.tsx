@@ -46,7 +46,7 @@ test('shows when a project default token is available', async () => {
   }] });
   render(<QueryClientProvider client={new QueryClient()}><PerfilTecnico /></QueryClientProvider>);
 
-  expect(await screen.findByText('Token predeterminado del proyecto')).toBeInTheDocument();
+  expect(await screen.findByText('Conexión del proyecto BloqIA')).toBeInTheDocument();
 });
 
 test('shows the provider catalog network error returned by the backend', async () => {

@@ -40,11 +40,22 @@ export interface ProviderWithModels {
   tokenStatus: ProviderTokenStatus;
   defaultTokenAvailable?: boolean;
   models: AIModel[];
+  oauthConnection?: GoogleConnectionStatus;
+}
+
+export interface GoogleConnectionStatus {
+  available: boolean;
+  connected: boolean;
+  email: string | null;
+  projectId: string | null;
+  projectName: string | null;
+  ready: boolean;
+  needsReconnect: boolean;
 }
 
 export interface AvailableModelsResponse {
   providerId: string;
-  source: 'token' | 'default' | 'free' | 'catalog';
+  source: 'token' | 'default' | 'free' | 'catalog' | 'oauth';
   message: string;
   models: AIModel[];
 }

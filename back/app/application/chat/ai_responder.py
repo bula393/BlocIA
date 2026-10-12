@@ -10,6 +10,7 @@ from urllib.request import Request
 import httpx
 
 from app.application.user.list_available_models import is_free_openrouter_model_id
+from app.application.user.google_ai_credentials import GoogleAICredential, google_headers
 
 from .free_models import LOCAL_MODEL_ID, LOCAL_MODEL_PATH
 from .settings import settings
@@ -127,7 +128,7 @@ class AIResponder:
                 self._client.close()
                 self._client = None
 
-    def generate(self, provider_id: str, model_id: str, prompt: str, api_key: str | None) -> str:
+    def generate(self, provider_id: str, model_id: str, prompt: str, api_key: str | GoogleAICredential | None) -> str:
         if provider_id == "local":
             if model_id != LOCAL_MODEL_ID:
                 raise ValueError("Elegí un modelo local disponible.")
@@ -161,7 +162,7 @@ class AIResponder:
             request = self._request(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{encoded_model}:generateContent",
                 {"systemInstruction": {"parts": [{"text": MODEL_SYSTEM_INSTRUCTION}]}, "contents": [{"parts": [{"text": prompt}]}]},
-                {"x-goog-api-key": api_key},
+                google_headers(api_key),
             )
             return self._text(
                 request,
@@ -232,6 +233,8 @@ class AIResponder:
                     "(ACCOUNT_STATE_INVALID). Reactivá o restaurá esa cuenta en Google Cloud, dentro del proyecto de la clave, "
                     "y volvé a intentar con la misma clave."
                 )
+            elif provider_name == "Google AI" and code in {401, 403} and request.has_header("Authorization"):
+                message = "Google rechazó la autorización de tu cuenta o el acceso al proyecto. Volvé a conectar Google en Proveedores y comprobá los permisos del proyecto."
             elif code in {401, 403}:
                 message = "El proveedor rechazó la clave o la clave no tiene permiso para usar este modelo. Revisá el token en Perfil técnico."
             elif code == 404:

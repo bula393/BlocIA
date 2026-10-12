@@ -5,6 +5,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.application.chat.ai_responder import AIResponder
+from app.application.user.google_ai_client import GoogleConnectionError
+from app.application.user.google_ai_credentials import GoogleAICredential
 from app.application.chat.default_provider_tokens import default_provider_token
 from app.application.chat.free_models import LOCAL_MODEL_ID, local_free_models
 from app.application.chat.google_defaults import default_google_key, default_google_models
@@ -14,8 +16,9 @@ from app.application.chat.local_models import local_models, ModelUnavailableErro
 from app.application.chat.settings import settings
 from app.infrastructure.chat_repository import ChatRepository, ConversationNotFoundError, TurnConflictError
 from app.infrastructure.usage_analytics_repository import LIMIT_REASONS, UsageAnalyticsRepository
+from app.infrastructure.abuse_limits import AbuseLimitExceeded
 from app.infrastructure.database import get_database
-from app.presentation.user.dependencies import current_user_mail, provider_repo, token_repo, user_repo
+from app.presentation.user.dependencies import current_user_mail, google_ai_connection, provider_repo, token_repo, user_repo
 
 from app.application.chat.send_message import send_chat_message, UsageBlockedError
 from app.presentation.chat_schemas import SendMessage
@@ -106,7 +109,7 @@ def delete_conversation(identifier: UUID, mail=Depends(chat_user), repository=De
 
 
 @router.post("/conversations/{identifier}/messages")
-def send_message(identifier: UUID, payload: SendMessage, response: Response, mail=Depends(chat_user), repository=Depends(chat_repository), models=Depends(local_models), providers=Depends(provider_repo), tokens=Depends(token_repo), users=Depends(user_repo), responder=Depends(ai_responder)):
+def send_message(identifier: UUID, payload: SendMessage, response: Response, mail=Depends(chat_user), repository=Depends(chat_repository), models=Depends(local_models), providers=Depends(provider_repo), tokens=Depends(token_repo), users=Depends(user_repo), responder=Depends(ai_responder), google=Depends(google_ai_connection)):
     identifier, request_id = str(identifier), str(payload.requestId)
     usage_analytics = UsageAnalyticsRepository(repository.database)
     try:
@@ -124,6 +127,7 @@ def send_message(identifier: UUID, payload: SendMessage, response: Response, mai
     if len(payload.prompt) > config.max_input_characters:
         raise HTTPException(422, detail={"message": f"La consulta admite hasta {config.max_input_characters} caracteres."})
     api_key = None
+    shared_provider_key = False
     if payload.providerId:
         if payload.providerId == "local":
             if payload.modelId != LOCAL_MODEL_ID or not local_free_models():
@@ -132,26 +136,39 @@ def send_message(identifier: UUID, payload: SendMessage, response: Response, mai
             provider = providers.get(payload.providerId)
             if payload.providerId not in responder.supported_providers or provider is None or provider.status.value != "available":
                 raise HTTPException(422, detail={"message": "El proveedor elegido no está disponible."})
-            api_key = tokens.get_secret(mail, payload.providerId)
+            if payload.providerId == "google":
+                try:
+                    api_key = google.credential(mail)
+                except GoogleConnectionError as exc:
+                    raise HTTPException(exc.status, detail={"message": str(exc)})
+            if api_key is None:
+                api_key = tokens.get_secret(mail, payload.providerId)
             if not api_key:
                 api_key = default_provider_token(payload.providerId)
+                shared_provider_key = bool(api_key)
             if not api_key and payload.providerId == "google":
                 api_key = default_google_key()
+                shared_provider_key = bool(api_key)
             elif not api_key and payload.providerId == "openrouter":
                 api_key = default_openrouter_key()
-            if payload.providerId == "google" and api_key:
+                shared_provider_key = bool(api_key)
+            if payload.providerId == "google" and api_key and not isinstance(api_key, GoogleAICredential):
                 allowed = google_quota_models(api_key)
                 if payload.modelId not in allowed:
                     message = UNVERIFIED_GOOGLE_QUOTA if not allowed else "Este modelo no tiene cuota de texto habilitada en el proyecto de tu clave Google. Actualizá el selector y elegí uno de los modelos habilitados."
                     raise HTTPException(422, detail={"message": message})
     try:
         result = send_chat_message(mail, identifier, request_id, payload, repository=repository, models=models,
-                                   users=users, responder=responder, usage_analytics=usage_analytics, api_key=api_key)
+                                   users=users, responder=responder, usage_analytics=usage_analytics, api_key=api_key,
+                                   shared_provider_key=shared_provider_key)
         if result.get("confirmationRequired"):
             response.status_code = 202
         return result
     except UsageBlockedError as error:
         raise HTTPException(423, detail={"message": lock_message(error.usage_lock), "usageLock": error.usage_lock})
+    except AbuseLimitExceeded as error:
+        headers = {"Retry-After": str(error.retry_after)} if error.retry_after is not None else None
+        raise HTTPException(429, detail={"message": str(error)}, headers=headers)
     except HTTPException:
         raise
     except ConversationNotFoundError as error:

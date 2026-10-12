@@ -2,7 +2,6 @@ from dataclasses import asdict
 from datetime import datetime
 from enum import Enum
 import json
-import os
 from typing import get_args, get_type_hints
 
 from app.domain.user.ai_model import AIModel
@@ -73,6 +72,24 @@ class UserRepository(Repository):
         user.validate()
         return self._save("users", ["mail"], [user.mail], user)
 
+    def create(self, user):
+        user.validate()
+        return self.database.execute(
+            "INSERT INTO users(mail,payload) VALUES (?,?) ON CONFLICT(mail) DO NOTHING",
+            (user.mail, serialize(user)),
+        ) == 1
+
+    def revoke_sessions(self, mail, expected_version):
+        with self.database.transaction():
+            if self.database.is_postgres:
+                self.database.query("SELECT mail FROM users WHERE mail=? FOR UPDATE", (mail,))
+            user = self.get(mail)
+            if user is None or user.auth_version != expected_version:
+                return False
+            user.auth_version += 1
+            self.save(user)
+            return True
+
 
 class CredentialRepository(Repository):
     def get(self, user_mail):
@@ -81,6 +98,9 @@ class CredentialRepository(Repository):
     def save(self, item):
         return self._save("credentials", ["user_mail"], [item.user_mail], item)
 
+    def delete(self, user_mail):
+        return self.database.execute("DELETE FROM credentials WHERE user_mail=?", (user_mail,)) > 0
+
 
 class ExternalLinkRepository(Repository):
     def get_by_subject(self, provider, external_subject):
@@ -88,6 +108,13 @@ class ExternalLinkRepository(Repository):
 
     def save(self, item):
         return self._save("external_links", ["provider", "external_subject", "user_mail"], [item.provider, item.external_subject, item.user_mail], item)
+
+    def create(self, item):
+        return self.database.execute(
+            "INSERT INTO external_links(provider,external_subject,user_mail,payload) VALUES (?,?,?,?) "
+            "ON CONFLICT(provider,external_subject) DO NOTHING",
+            (item.provider, item.external_subject, item.user_mail, serialize(item)),
+        ) == 1
 
 
 class ProviderRepository(Repository):
@@ -117,21 +144,8 @@ class TokenRepository(Repository):
         return self._save("provider_tokens", ["user_mail", "provider_id"], [item.user_mail, item.provider_id], item)
 
     def _cipher(self):
-        from cryptography.fernet import Fernet
-        key = os.getenv("BLOCIA_ENCRYPTION_KEY")
-        if key:
-            return Fernet(key.encode())
-        if self.database.is_postgres:
-            raise RuntimeError("BLOCIA_ENCRYPTION_KEY es obligatoria para cifrar credenciales con PostgreSQL.")
-        key_path = self.database.path.parent / ".token-encryption.key"
-        try:
-            descriptor = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        except FileExistsError:
-            pass
-        else:
-            with os.fdopen(descriptor, "wb") as file:
-                file.write(Fernet.generate_key())
-        return Fernet(key_path.read_bytes())
+        from .credential_cipher import credential_cipher
+        return credential_cipher(self.database)
 
     def save_secret(self, user_mail, provider_id, raw_token):
         encrypted = self._cipher().encrypt(raw_token.encode())

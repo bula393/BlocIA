@@ -86,6 +86,47 @@ class CapturingVerificationSender:
         self.deliveries.append((mail, code, expires_seconds))
 
 
+def test_postgres_oauth_tokens_are_encrypted_and_refresh_serializes_across_workers(postgres_email_account, monkeypatch):
+    from app.application.user.google_ai_connection import GoogleAIConnection, GOOGLE_AI_SCOPE
+    from app.infrastructure.user.provider_oauth_repository import ProviderOAuthRepository
+
+    database, mail = postgres_email_account
+    monkeypatch.setenv("BLOCIA_GOOGLE_OAUTH_ENABLED", "1")
+    monkeypatch.setenv("GOOGLE_AI_CLIENT_ID", "personal-client")
+    monkeypatch.setenv("GOOGLE_AI_CLIENT_SECRET", "personal-secret")
+    repository = ProviderOAuthRepository(database)
+    repository.save(mail, {"subject": "google-subject", "email": "personal@gmail.com", "client_id": "personal-client",
+                           "access_token": "expired-private-access", "refresh_token": "private-refresh", "scope": GOOGLE_AI_SCOPE,
+                           "expires_at": 0, "project_id": "personal-project"})
+    encrypted = bytes(database.query("SELECT ciphertext FROM provider_oauth_accounts WHERE user_mail=?", (mail,))[0][0])
+    assert b"private-refresh" not in encrypted
+    barrier = Barrier(2)
+    refreshes = []
+
+    class GoogleDouble:
+        def refresh(self, config, token):
+            refreshes.append(token)
+            time.sleep(.1)
+            return {"access_token": "new-private-access", "refresh_token": "new-private-refresh", "expires_in": 3600}
+
+    # Separate Database instances model independent API workers sharing Postgres.
+    other = Database(database_url=POSTGRES_URL, legacy_path=None)
+    services = [GoogleAIConnection(repository, GoogleDouble()), GoogleAIConnection(ProviderOAuthRepository(other), GoogleDouble())]
+
+    def credential(service):
+        barrier.wait(10)
+        return service.credential(mail)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        result = list(pool.map(credential, services))
+    assert [item.access_token for item in result] == ["new-private-access"] * 2
+    assert refreshes == ["private-refresh"]
+    assert repository.get(mail)["refresh_token"] == "new-private-refresh"
+    repository.begin(mail, "private-state", "private-browser", {"nonce": "nonce", "verifier": "verifier"})
+    assert repository.consume(mail, "private-state", "private-browser")["nonce"] == "nonce"
+    assert repository.consume(mail, "private-state", "private-browser") is None
+
+
 def test_postgres_email_failed_guesses_commit_and_verified_challenge_is_consumed(postgres_email_account):
     database, mail = postgres_email_account
     sender = CapturingVerificationSender()

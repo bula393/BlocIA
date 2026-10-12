@@ -111,3 +111,29 @@ test('retains an explicit choice through catalog changes and page remounts witho
   await waitFor(() => expect(otherAccount.result.current.modelsLoading).toBe(false));
   expect(otherAccount.result.current.selectedModel).toBe('groq:openai/gpt-oss-20b');
 });
+
+test('offers OAuth models without advertising server Google models or changing the Groq default', async () => {
+  vi.mocked(listTechnicalProviders).mockResolvedValue({ providers: [{
+    providerId: 'google', name: 'Google AI', status: 'available', models: [], defaultTokenAvailable: true,
+    tokenStatus: { providerId: 'google', status: 'not-configured' },
+    oauthConnection: { available: true, connected: true, ready: true, needsReconnect: false, email: 'me@gmail.com', projectId: 'my-project', projectName: 'Mi proyecto' },
+  }] });
+  vi.mocked(listAvailableModels).mockResolvedValue({ ...googleCatalog, source: 'oauth' });
+  vi.mocked(getChatStatus).mockResolvedValue({
+    ready: true, classifierReady: true, mode: 'classification', model: 'test-classifier', maxInputCharacters: 4000,
+    usageLock, training: { examples: 1000, macroF1: .9, decisionRecall: .9 },
+    freeModels: [{ providerId: 'google', providerName: 'Google AI', modelId: 'owner-gemini', displayName: 'Owner Gemini' }],
+  });
+  const { result, client } = renderController();
+  await waitFor(() => expect(result.current.modelsLoading).toBe(false));
+  expect(result.current.modelOptions.map((model) => model.key)).toEqual(['google:gemini-flash']);
+  expect(result.current.selectedModel).toBe('groq:openai/gpt-oss-20b');
+  act(() => result.current.selectModel('google:gemini-flash'));
+  expect(result.current.selectedModelAvailable).toBe(true);
+  act(() => client.setQueryData(['chat-providers'], { providers: [{
+    providerId: 'google', name: 'Google AI', status: 'available', defaultTokenAvailable: true,
+    tokenStatus: { status: 'not-configured' }, oauthConnection: { connected: true, ready: false, needsReconnect: true },
+  }] }));
+  await waitFor(() => expect(result.current.modelOptions).toHaveLength(0));
+  expect(result.current.selectedModelAvailable).toBe(false);
+});

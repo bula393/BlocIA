@@ -23,5 +23,8 @@ class PasswordCredential:
     def verify(self, raw_password: str) -> bool:
         return PasswordPolicy.verify(raw_password, self.password_hash)
 
+    def needs_rehash(self) -> bool:
+        return PasswordPolicy.needs_rehash(self.password_hash)
+
     def register_invalid_attempt(self) -> None:
         return None

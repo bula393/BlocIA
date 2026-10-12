@@ -7,6 +7,8 @@ import math
 import secrets
 import time
 
+from app.infrastructure.abuse_limits import AbuseLimitExceeded
+
 
 class EmailVerificationError(Exception):
     def __init__(self, message: str, status_code: int = 400, retry_after: int | None = None):
@@ -34,11 +36,12 @@ class VerifyEmail:
     MAX_SENDS = 10
     MAX_ATTEMPTS = 5
 
-    def __init__(self, repository, sender, secret: str, clock=time.time):
+    def __init__(self, repository, sender, secret: str, clock=time.time, abuse_limits=None):
         self.repository = repository
         self.sender = sender
         self.secret = secret
         self.clock = clock
+        self.abuse_limits = abuse_limits
 
     def _status(self, mail, record):
         now = self.clock()
@@ -77,6 +80,11 @@ class VerifyEmail:
             if record.send_count >= self.MAX_SENDS:
                 raise EmailVerificationError("Alcanzaste el límite de códigos. Probá de nuevo mañana.", 429,
                                              math.ceil(record.window_started_at + self.WINDOW_SECONDS - now))
+            if self.abuse_limits is not None:
+                try:
+                    self.abuse_limits.admit_email_send()
+                except AbuseLimitExceeded as exc:
+                    raise EmailVerificationError(str(exc), 429, exc.retry_after) from None
             code = f"{secrets.randbelow(1000000):06d}"
             nonce = secrets.token_hex(16)
             digest = self._digest(mail, nonce, code)

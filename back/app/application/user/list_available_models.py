@@ -89,13 +89,14 @@ class OpenAIModelsClient:
 
 class GoogleModelsClient:
     def list_models(self, api_key: str) -> list[AIModel]:
+        from .google_ai_credentials import google_headers
         page_token = None
         result = []
         excluded_terms = ("tts", "audio", "live", "image", "robotics")
         for _ in range(10):
             query = urlencode({"pageToken": page_token}) if page_token else ""
             url = "https://generativelanguage.googleapis.com/v1beta/models" + (f"?{query}" if query else "")
-            request = Request(url, headers={"x-goog-api-key": api_key})
+            request = Request(url, headers=google_headers(api_key))
             payload = _get_json(request, "Google AI")
             items = payload.get("models")
             if not isinstance(items, list):
@@ -254,10 +255,14 @@ class ListAvailableModels:
         self.groq = groq or GroqModelsClient()
         self.openrouter = openrouter or OpenRouterModelsClient()
 
-    def execute(self, user_mail: str, provider_id: str) -> AvailableModelList:
+    def execute(self, user_mail: str, provider_id: str, google_credential=None) -> AvailableModelList:
         provider = self.providers.get(provider_id)
         if provider is None:
             raise ProviderModelsUnavailableError("Proveedor no encontrado.")
+
+        if provider_id == "google" and google_credential is not None:
+            available = self.google.list_models(google_credential)
+            return AvailableModelList(provider_id, "oauth", "Usás tu cuenta Google y el proyecto que elegiste. El catálogo no garantiza cupo: cada solicitud depende de los permisos, límites y facturación del proyecto. Google AI Pro/Ultra se administra por separado.", available)
 
         secret = self.tokens.get_secret(user_mail, provider_id)
         source = "token"

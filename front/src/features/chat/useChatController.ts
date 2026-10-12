@@ -46,7 +46,7 @@ export function useChatController() {
     usage_time: `Alcanzaste el límite de ${(usageLock?.usageLimitSeconds ?? 10800) / 3600} horas de uso de IA.`,
     personal_questions: `Alcanzaste el límite de ${personalLimit} consultas personales durante las últimas 24 horas.`
   };
-  const configuredProviders = (providerQuery.data?.providers ?? []).filter((provider) => provider.status === 'available' && (provider.tokenStatus.status === 'configured' || provider.defaultTokenAvailable));
+  const configuredProviders = (providerQuery.data?.providers ?? []).filter((provider) => provider.status === 'available' && (provider.oauthConnection?.connected ? provider.oauthConnection.ready : provider.tokenStatus.status === 'configured' || provider.defaultTokenAvailable));
   const modelCatalogQueries = useQueries({
     queries: configuredProviders.map((provider) => ({
       queryKey: ['chat-models', provider.providerId],
@@ -57,12 +57,12 @@ export function useChatController() {
   const modelCatalogQueryByProvider = new Map(configuredProviders.map((provider, index) => [provider.providerId, modelCatalogQueries[index]]));
   const configuredModelOptions: ChatModelOption[] = configuredProviders.flatMap((provider) => {
       const catalog = modelCatalogQueryByProvider.get(provider.providerId)?.data;
-      if (!catalog || !['token', 'default'].includes(catalog.source)) return [];
+      if (!catalog || !['token', 'default', 'oauth'].includes(catalog.source)) return [];
       return catalog.models.filter((model) => model.availabilityStatus === 'available').map((model) => ({ key: `${provider.providerId}:${model.modelId}`, providerId: provider.providerId, providerName: providerLabel(provider.providerId, provider.name), modelId: model.modelId, displayName: model.displayName }));
     });
   const modelOptions: ChatModelOption[] = [
     ...configuredModelOptions,
-    ...(status?.freeModels ?? []).map((model) => ({ ...model, key: `${model.providerId}:${model.modelId}`, providerName: providerLabel(model.providerId, model.providerName) }))
+    ...(status?.freeModels ?? []).filter((model) => !providerQuery.data?.providers.some((provider) => provider.providerId === model.providerId && provider.oauthConnection?.connected)).map((model) => ({ ...model, key: `${model.providerId}:${model.modelId}`, providerName: providerLabel(model.providerId, model.providerName) }))
   ];
   const selectedModelOption = modelPreference
     ? modelOptions.find((model) => model.key === modelPreference.key || (isDefaultChatModel(modelPreference) && isDefaultChatModel(model)))

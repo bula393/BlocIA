@@ -33,11 +33,11 @@ sesión y no debe copiarse en estas variables.
    GOOGLE_REGISTRATION_SECRET=<otro-secreto-largo-aleatorio-para-el-alta-pendiente>
    ```
 
-   `ACCESS_TOKEN_SECRET` también debe estar configurado en `back`. Si
+   `GOOGLE_REGISTRATION_SECRET` debe ser un valor aleatorio independiente de
+   al menos 32 caracteres; no se acepta una clave de respaldo pública ni se
+   reutiliza el secreto de cliente OAuth. `ACCESS_TOKEN_SECRET` también debe estar configurado en `back`. Si
    `GOOGLE_SESSION_SECRET` queda vacío, el callback usa `ACCESS_TOKEN_SECRET`
-   como firma; se recomienda configurar secretos separados. Para el alta
-   pendiente, `GOOGLE_REGISTRATION_SECRET` usa el secreto del cliente OAuth
-   como alternativa. Las credenciales reales de Google Cloud no se generan
+   como firma; se recomienda configurar secretos separados. Las credenciales reales de Google Cloud no se generan
    automáticamente al desplegar BlocIA.
 4. Conservá la ruta pública del servicio `back` como `/api`, **Internal Path**
    `/` y **Strip Path** activado. El prefijo `/api` pertenece al enrutador de

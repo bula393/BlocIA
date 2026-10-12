@@ -2,9 +2,24 @@ CREATE TABLE IF NOT EXISTS app_meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS abuse_counters (
+    scope TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    window_started_at BIGINT NOT NULL,
+    hit_count INTEGER NOT NULL CHECK(hit_count >= 0),
+    PRIMARY KEY(scope, subject, window_started_at)
+);
+CREATE INDEX IF NOT EXISTS abuse_counters_by_window ON abuse_counters(scope, window_started_at);
 CREATE TABLE IF NOT EXISTS users (
     mail TEXT PRIMARY KEY,
     payload TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS active_chat_work (
+    user_mail TEXT PRIMARY KEY REFERENCES users(mail) ON DELETE CASCADE,
+    conversation_id TEXT NOT NULL,
+    request_id TEXT NOT NULL,
+    lease_id TEXT NOT NULL,
+    started_at DOUBLE PRECISION NOT NULL
 );
 CREATE TABLE IF NOT EXISTS credentials (
     user_mail TEXT PRIMARY KEY REFERENCES users(mail) ON DELETE CASCADE,
@@ -74,6 +89,7 @@ CREATE TABLE IF NOT EXISTS chat_turns (
     completed_at DOUBLE PRECISION,
     duration_seconds DOUBLE PRECISION NOT NULL DEFAULT 0,
     phase TEXT NOT NULL DEFAULT 'classifying' CHECK(phase IN ('classifying', 'generating')),
+    lease_id TEXT,
     PRIMARY KEY(conversation_id, request_id)
 );
 CREATE INDEX IF NOT EXISTS turns_completed_at ON chat_turns(completed_at);
@@ -91,6 +107,16 @@ CREATE TABLE IF NOT EXISTS user_usage_resets (
     reason TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS usage_resets_by_user ON user_usage_resets(user_mail, reset_at);
+CREATE TABLE IF NOT EXISTS quota_usage (
+    user_mail TEXT NOT NULL REFERENCES users(mail) ON DELETE CASCADE,
+    conversation_id TEXT NOT NULL,
+    request_id TEXT NOT NULL,
+    completed_at DOUBLE PRECISION NOT NULL,
+    duration_seconds DOUBLE PRECISION NOT NULL DEFAULT 0,
+    personal_question BOOLEAN NOT NULL,
+    PRIMARY KEY(user_mail, conversation_id, request_id)
+);
+CREATE INDEX IF NOT EXISTS quota_usage_by_user_time ON quota_usage(user_mail, completed_at);
 CREATE TABLE IF NOT EXISTS messages (
     sequence BIGSERIAL PRIMARY KEY,
     id TEXT NOT NULL UNIQUE,
@@ -106,3 +132,16 @@ CREATE TABLE IF NOT EXISTS messages (
     FOREIGN KEY(conversation_id, request_id) REFERENCES chat_turns(conversation_id, request_id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS messages_by_conversation ON messages(conversation_id, sequence);
+CREATE TABLE IF NOT EXISTS provider_oauth_accounts (
+    user_mail TEXT NOT NULL REFERENCES users(mail) ON DELETE CASCADE,
+    provider_id TEXT NOT NULL,
+    ciphertext BYTEA NOT NULL,
+    PRIMARY KEY(user_mail, provider_id)
+);
+CREATE TABLE IF NOT EXISTS provider_oauth_transactions (
+    state_hash TEXT PRIMARY KEY,
+    user_mail TEXT NOT NULL REFERENCES users(mail) ON DELETE CASCADE,
+    browser_hash TEXT NOT NULL,
+    ciphertext BYTEA NOT NULL,
+    expires_at DOUBLE PRECISION NOT NULL
+);

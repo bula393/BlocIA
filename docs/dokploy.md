@@ -66,7 +66,7 @@ Generá los secretos en tu equipo, sin pegarlos en el chat. `ACCESS_TOKEN_SECRET
 
 ### Google Login y verificación de correo para claves propias
 
-Seguí [la guía de Google OAuth](../back/GOOGLE_OAUTH_SETUP.md) para crear un cliente de tipo **Aplicación web**. En **Google Auth Platform**, completá Branding/Audience y agregá las cuentas de prueba mientras el proyecto esté en Testing. Usá como origen `https://bloqia.policloudservices.ipm.edu.ar` y como redirect autorizado `https://bloqia.policloudservices.ipm.edu.ar/api/auth/google/callback`. Guardá `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y esa misma `GOOGLE_REDIRECT_URI` solo en **back → Environment**; después desplegá back. El secreto OAuth es distinto de una clave Gemini y nunca se incluye en el frontend.
+Seguí [la guía de Google OAuth](../back/GOOGLE_OAUTH_SETUP.md) para crear un cliente de tipo **Aplicación web**. En **Google Auth Platform**, completá Branding/Audience y agregá las cuentas de prueba mientras el proyecto esté en Testing. Usá como origen `https://bloqia.policloudservices.ipm.edu.ar` y como redirect autorizado `https://bloqia.policloudservices.ipm.edu.ar/api/auth/google/callback`. Guardá `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REGISTRATION_SECRET` (secreto aleatorio independiente de al menos 32 caracteres) y esa misma `GOOGLE_REDIRECT_URI` solo en **back → Environment**; después desplegá back. El secreto OAuth es distinto de una clave Gemini y nunca se incluye en el frontend.
 
 Para conectar claves propias de proveedores, cada cuenta debe recibir y confirmar un código en su correo. Configurá estas variables únicamente en **back → Environment**:
 
@@ -145,6 +145,7 @@ Si preferís administrar contenedores mediante Compose en lugar de las tres Appl
 - Para volver a una versión anterior, colocá en cada Application el tag completo del SHA anterior publicado y desplegá `clasificador`, `back` y `front` en ese orden. Conservá los volúmenes. Un rollback de código no revierte migraciones de datos; guardá una copia antes de cambios de esquema.
 - La preparación de IA rechaza cambios de revisión que sobrescribirían pesos existentes. Para actualizar modelos, hacé una copia del volumen y ejecutá explícitamente `python -m ml.prepare --classifier-only --force-model-revision` dentro del contenedor de `clasificador`; omití `--classifier-only` si habilitaste Qwen. Reiniciá esa Application después. No se forza ese cambio en cada despliegue.
 - El back usa PostgreSQL mediante `DATABASE_URL`; SQLite queda como opción local de desarrollo y pruebas.
+- Los presupuestos persistentes y compartidos entre workers permiten, por defecto, 500 registros nuevos por día, 100.000 altas acumuladas, 250 códigos de verificación por día, 50 clasificaciones diarias por cuenta, 5.000 clasificaciones globales y 300 solicitudes diarias con credenciales de proveedores compartidas. Ajustalos en el Environment del back mediante `BLOCIA_REGISTRATION_MAX_PER_DAY`, `BLOCIA_MAX_ACCOUNTS`, `BLOCIA_VERIFICATION_EMAIL_MAX_PER_DAY`, `BLOCIA_CLASSIFICATION_MAX_PER_USER_PER_DAY`, `BLOCIA_CLASSIFICATION_MAX_PER_DAY` y `BLOCIA_SHARED_PROVIDER_MAX_PER_DAY`. Se guardan en la base; al actualizar una instalación existente, el límite acumulado se inicializa con las cuentas actuales.
 
 ## Si ya desplegaste la configuración conjunta con Compose
 

@@ -42,6 +42,69 @@ class Database:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self._initialize_sqlite()
         self._seed_and_import(legacy_path)
+        self._migrate_application_data()
+
+    def _migrate_application_data(self):
+        """Keep quota records and active work independent of deletable conversations."""
+        from app.domain.user.enums import LoginProviderStatus
+        from app.infrastructure.user.sqlite_repositories import CredentialRepository, UserRepository
+
+        users, credentials = UserRepository(self), CredentialRepository(self)
+        with self.transaction():
+            self.execute(
+                "UPDATE chat_turns SET lease_id='legacy:'||conversation_id||':'||request_id "
+                "WHERE state='pending' AND lease_id IS NULL"
+            )
+            pending = self.query(
+                "SELECT conversations.user_mail,turns.conversation_id,turns.request_id,turns.lease_id,turns.started_at "
+                "FROM chat_turns AS turns JOIN conversations ON conversations.id=turns.conversation_id "
+                "WHERE turns.state='pending' ORDER BY turns.started_at"
+            )
+            for row in pending:
+                self.execute(
+                    "INSERT INTO active_chat_work(user_mail,conversation_id,request_id,lease_id,started_at) "
+                    "VALUES (?,?,?,?,?) ON CONFLICT(user_mail) DO NOTHING",
+                    (row["user_mail"], row["conversation_id"], row["request_id"], row["lease_id"], row["started_at"]),
+                )
+            if not self.query("SELECT 1 FROM app_meta WHERE key='quota_ledger_v2'"):
+                label = ("(question.classification::jsonb ->> 'label')" if self.is_postgres
+                         else "json_extract(question.classification,'$.label')")
+                self.execute(
+                    "INSERT INTO quota_usage(user_mail,conversation_id,request_id,completed_at,duration_seconds,personal_question) "
+                    f"SELECT conversations.user_mail,turns.conversation_id,turns.request_id,turns.completed_at,turns.duration_seconds,({label} IN ('personal_informativa','personal_decision')) "
+                    "FROM chat_turns AS turns JOIN conversations ON conversations.id=turns.conversation_id "
+                    "JOIN messages AS question ON question.conversation_id=turns.conversation_id "
+                    "AND question.request_id=turns.request_id AND question.role='user' "
+                    "WHERE turns.state='completed' AND turns.completed_at IS NOT NULL "
+                    "ON CONFLICT(user_mail,conversation_id,request_id) DO NOTHING"
+                )
+                self.execute("INSERT INTO app_meta(key,value) VALUES ('quota_ledger_v2','complete')")
+
+            # Earlier Google linking retained the password credential. Retire
+            # that login path and invalidate sessions issued before recovery.
+            if not self.query("SELECT 1 FROM app_meta WHERE key='google_password_retirement_v1'"):
+                for row in self.query("SELECT user_mail FROM external_links WHERE provider='google'"):
+                    user = users.get(row["user_mail"])
+                    if user is None:
+                        continue
+                    credential = credentials.get(user.mail)
+                    if (user.password_status or credential is not None
+                            or user.login_provider_status == LoginProviderStatus.PASSWORD_AND_GOOGLE):
+                        user.password_status = False
+                        user.login_provider_status = LoginProviderStatus.GOOGLE
+                        user.auth_version += 1
+                        users.save(user)
+                        credentials.delete(user.mail)
+                self.execute("INSERT INTO app_meta(key,value) VALUES ('google_password_retirement_v1','complete')")
+
+            if not self.query("SELECT 1 FROM app_meta WHERE key='registration_total_counter_v1'"):
+                existing_accounts = int(self.query("SELECT COUNT(*) AS total FROM users")[0]["total"] or 0)
+                self.execute(
+                    "INSERT INTO abuse_counters(scope,subject,window_started_at,hit_count) VALUES ('registration-total','global',0,?) "
+                    "ON CONFLICT(scope,subject,window_started_at) DO NOTHING",
+                    (existing_accounts,),
+                )
+                self.execute("INSERT INTO app_meta(key,value) VALUES ('registration_total_counter_v1','complete')")
 
     def connect(self):
         if self.is_postgres:
@@ -80,6 +143,8 @@ class Database:
                 connection.execute("ALTER TABLE chat_turns ADD COLUMN completed_at REAL")
             if "duration_seconds" not in turn_columns:
                 connection.execute("ALTER TABLE chat_turns ADD COLUMN duration_seconds REAL NOT NULL DEFAULT 0")
+            if "lease_id" not in turn_columns:
+                connection.execute("ALTER TABLE chat_turns ADD COLUMN lease_id TEXT")
             connection.execute(
                 "UPDATE chat_turns SET completed_at=COALESCE((SELECT CAST(strftime('%s',messages.created_at) AS REAL) "
                 "FROM messages WHERE messages.conversation_id=chat_turns.conversation_id AND messages.request_id=chat_turns.request_id "
@@ -101,6 +166,7 @@ class Database:
                 for statement in schema.split(";"):
                     if statement.strip():
                         connection.execute(statement)
+                connection.execute("ALTER TABLE chat_turns ADD COLUMN IF NOT EXISTS lease_id TEXT")
         finally:
             connection.close()
 

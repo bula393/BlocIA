@@ -76,3 +76,81 @@ test('technical profile verifies email before connecting a personal key on deskt
   expect(saves).toBe(1);
   expect(errors).toEqual([]);
 });
+
+for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+  test(`Google account connects, handles quota errors, and disconnects at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.addInitScript(() => {
+      const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+      (globalThis as { __BLOQIA_TEST_JWT__?: string }).__BLOQIA_TEST_JWT__ = `${encode({ alg: 'none' })}.${encode({ sub: 'persona@example.com', exp: 4102444800 })}.signature`;
+    });
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    let connected = false;
+    let ready = false;
+    let probes = 0;
+    let starts = 0;
+    const account = () => ({ available: true, connected, ready, needsReconnect: false, email: connected ? 'mi.cuenta.personal.con.un.nombre.largo@gmail.com' : null, projectId: ready ? 'my-google-project' : null, projectName: ready ? 'Mi proyecto personal' : null });
+    await page.route('**/technical-profile/**', async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith('/email-verification')) return route.fulfill({ json: { verified: true, email: 'persona@example.com', expiresInSeconds: null, resendInSeconds: 0 } });
+      if (path.endsWith('/google/start')) {
+        starts += 1;
+        return route.fulfill({ json: { authorizationUrl: 'http://127.0.0.1:4190/simulated-google-consent' } });
+      }
+      if (path.endsWith('/google/projects')) return route.fulfill({ json: { projects: [{ projectId: 'my-google-project', name: 'Mi proyecto personal' }] } });
+      if (path.endsWith('/google/project')) {
+        expect(route.request().postDataJSON()).toEqual({ projectId: 'my-google-project' });
+        probes += 1;
+        if (probes === 1) return route.fulfill({ status: 409, json: { message: 'Google no tiene cupo disponible para esta prueba. Intentá más tarde.' } });
+        ready = true;
+        return route.fulfill({ json: account() });
+      }
+      if (path.endsWith('/google')) {
+        if (route.request().method() === 'DELETE') {
+          connected = false;
+          ready = false;
+          return route.fulfill({ json: { disconnected: true, revoked: true } });
+        }
+        return route.fulfill({ json: account() });
+      }
+      if (path.endsWith('/providers')) return route.fulfill({ json: { providers: [{ providerId: 'google', name: 'Google AI', status: 'available', defaultTokenAvailable: true, tokenStatus: { providerId: 'google', status: 'not-configured' }, models: [], oauthConnection: account() }] } });
+      if (path.endsWith('/models')) return route.fulfill({ json: { providerId: 'google', source: connected ? 'oauth' : 'default', models: ready ? [{ modelId: 'gemini-test-flash', displayName: 'Gemini Flash', availabilityStatus: 'available', capabilities: ['chat'] }] : [], message: ready ? 'Cuenta Google conectada.' : 'Elegí una conexión para usar Gemini.' } });
+      return route.fulfill({ status: 404, json: { message: 'Ruta no esperada' } });
+    });
+    await page.route('**/simulated-google-consent', (route) => route.fulfill({ contentType: 'text/html', body: '<h1>Autorización de Google simulada para la prueba</h1>' }));
+    await page.goto('/perfil-tecnico');
+    if (viewport.width < 760) await page.getByRole('button', { name: /Google AI.*Conexión del proyecto disponible/ }).click();
+    const connect = page.getByRole('button', { name: 'Conectar con Google', exact: true });
+    await expect(connect).toBeEnabled();
+    await expect(page.getByLabel('Clave API Google AI')).not.toBeVisible();
+    await connect.click();
+    await expect(page).toHaveURL(/simulated-google-consent/);
+    expect(starts).toBe(1);
+    connected = true;
+    await page.goto('/perfil-tecnico?google=connected#provider-google');
+    await expect(page.getByLabel('Dónde usar Gemini')).toHaveValue('my-google-project');
+    expect(probes).toBe(0);
+    await expect(page.getByText(/La comprobación envía una consulta breve/)).toBeVisible();
+    await page.locator('.provider-account').screenshot({ path: `test-results/google-connect-${viewport.width}.png` });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByRole('button', { name: 'Comprobar y usar Gemini' }).click();
+    const error = page.getByRole('alert');
+    await expect(error).toHaveText(/Google no tiene cupo/);
+    await error.getByRole('button', { name: 'Cerrar aviso' }).click();
+    await expect(error).not.toBeVisible();
+    await page.getByRole('button', { name: 'Comprobar y usar Gemini' }).click();
+    await expect(page.getByRole('heading', { name: 'Tu cuenta está lista' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Ir al chat' })).toBeVisible();
+    await expect(page.getByLabel('Dónde usar Gemini')).not.toBeVisible();
+    await page.locator('.provider-account').screenshot({ path: `test-results/google-ready-${viewport.width}.png` });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(probes).toBe(2);
+    await page.getByText('Usar una clave API · avanzado', { exact: true }).click();
+    await expect(page.getByLabel('Clave API Google AI')).toBeDisabled();
+    await page.getByRole('button', { name: 'Desconectar cuenta Google' }).click();
+    await expect(connect).toBeEnabled();
+    await expect(page.getByLabel('Clave API Google AI')).toBeEnabled();
+    expect(errors).toEqual([]);
+  });
+}

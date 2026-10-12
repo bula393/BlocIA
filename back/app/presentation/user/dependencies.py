@@ -2,8 +2,9 @@ import os
 
 from fastapi import Cookie, Depends, Header, HTTPException
 
-from app.application.user.session import parse_access_token
+from app.application.user.session import parse_access_token_claims
 from app.infrastructure.database import get_database
+from app.infrastructure.abuse_limits import AbuseLimitRepository
 from app.application.user.verify_email import VerifyEmail
 from app.infrastructure.user.email_verification_repository import EmailVerificationRepository
 from app.infrastructure.user.smtp_email_sender import SmtpEmailSender
@@ -46,14 +47,25 @@ def usage_repo(database=Depends(get_database)):
     return UsageRepository(database)
 
 
-def email_verification(database=Depends(get_database)):
+def abuse_limits(database=Depends(get_database)):
+    return AbuseLimitRepository(database)
+
+
+def email_verification(database=Depends(get_database), limits=Depends(abuse_limits)):
     return VerifyEmail(EmailVerificationRepository(database), SmtpEmailSender(),
-                       os.getenv("ACCESS_TOKEN_SECRET", ""))
+                       os.getenv("ACCESS_TOKEN_SECRET", ""), abuse_limits=limits)
+
+
+def google_ai_connection(database=Depends(get_database)):
+    from app.application.user.google_ai_connection import GoogleAIConnection
+    from app.infrastructure.user.provider_oauth_repository import ProviderOAuthRepository
+    return GoogleAIConnection(ProviderOAuthRepository(database))
 
 
 def current_user_mail(
     authorization: str | None = Header(default=None),
     bloqia_session: str | None = Cookie(default=None),
+    users=Depends(user_repo),
 ) -> str:
     """Accept the in-memory API token or the browser-session cookie.
 
@@ -67,7 +79,9 @@ def current_user_mail(
         candidates.append(bloqia_session)
 
     for token in candidates:
-        mail = parse_access_token(token)
-        if mail:
-            return mail
+        claims = parse_access_token_claims(token)
+        if claims:
+            user = users.get(claims.get("sub"))
+            if user is not None and claims.get("ver", 0) == user.auth_version:
+                return user.mail
     raise HTTPException(status_code=401, detail={"message": "Authentication required"})

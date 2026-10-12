@@ -10,6 +10,12 @@ from app.infrastructure.chat_repository import ChatRepository, ConversationNotFo
 from app.main import create_app
 
 
+def classification(label, confidence=0.91, status="aceptada", needs_review=False):
+    group = "no_personal" if label == "no_personal" else "personal"
+    return {"label": label, "group": group, "confidence": confidence, "status": status,
+            "needs_human_review": needs_review}
+
+
 class FakeModels:
     fail = False
     calls = 0
@@ -64,6 +70,7 @@ def test_remote_default_uses_server_key_and_personal_key_takes_priority(sql_chat
     client, database, _ = sql_chat
     monkeypatch.delenv("BLOCIA_DEFAULT_OPENROUTER_TOKEN", raising=False)
     monkeypatch.setenv("BLOCIA_FREE_OPENROUTER_KEY", "server-key")
+    monkeypatch.setenv("BLOCIA_SHARED_PROVIDER_MAX_PER_DAY", "1")
     monkeypatch.setattr(chat_routes, "default_google_models", lambda: [])
     calls = []
 
@@ -81,6 +88,10 @@ def test_remote_default_uses_server_key_and_personal_key_takes_priority(sql_chat
     response = client.post(endpoint, json=payload)
     assert response.status_code == 200
     assert response.json()["messages"][-1]["content"] == "Respuesta remota"
+    payload["requestId"] = str(uuid4())
+    limited = client.post(endpoint, json=payload)
+    assert limited.status_code == 429
+    assert calls == ["server-key"]
     tokens = TokenRepository(database)
     tokens.save(ProviderToken.create(str(uuid4()), "chat@example.com", "openrouter", "personal-key"))
     tokens.save_secret("chat@example.com", "openrouter", "personal-key")
@@ -106,6 +117,35 @@ def test_google_global_key_does_not_advertise_model_from_legacy_credential(sql_c
     expected = [] if global_key_configured else [{"providerId": "google", "modelId": "legacy-gemini"}]
     assert response.json()["freeModels"] == expected
     assert "global-google-key" not in response.text
+
+
+def test_google_account_uses_personal_project_and_never_falls_back_after_revocation(sql_chat, monkeypatch):
+    from app.application.user.google_ai_client import GoogleConnectionError
+    from app.application.user.google_ai_credentials import GoogleAICredential
+    from app.presentation.user.dependencies import google_ai_connection
+    from types import SimpleNamespace
+
+    client, _, models = sql_chat
+    monkeypatch.setenv("BLOCIA_DEFAULT_GOOGLE_TOKEN", "owner-key-must-not-be-used")
+    credential = GoogleAICredential("personal-access", "personal-project")
+    connection = SimpleNamespace(credential=lambda mail: credential)
+    client.app.dependency_overrides[google_ai_connection] = lambda: connection
+    calls = []
+    monkeypatch.setattr(chat_routes.AIResponder, "generate", lambda self, provider, model, prompt, api_key: calls.append(api_key) or "Respuesta personal")
+    identifier = client.post("/chat/conversations").json()["id"]
+    endpoint = f"/chat/conversations/{identifier}/messages"
+    payload = {"prompt": "Hola", "providerId": "google", "modelId": "gemini-test", "requestId": str(uuid4())}
+    assert client.post(endpoint, json=payload).status_code == 200
+    assert calls == [credential]
+
+    def revoked(mail):
+        raise GoogleConnectionError("Volvé a conectar Google", "reconnect", 409)
+
+    connection.credential = revoked
+    payload["requestId"] = str(uuid4())
+    assert client.post(endpoint, json=payload).status_code == 409
+    assert calls == [credential]
+    assert models.calls == 1
 
 
 @pytest.mark.parametrize(("provider_id", "model_id", "environment_variable"), [
@@ -234,7 +274,7 @@ def test_generation_starts_after_classification_and_progress_is_private(sql_chat
 
     def classify(prompt):
         phases.append(repository.progress("chat@example.com", identifier, request_id)["phase"])
-        return {"label": "no_personal"}
+        return classification("no_personal")
 
     def generate(self, *args):
         phases.append(repository.progress("chat@example.com", identifier, request_id)["phase"])
@@ -272,7 +312,7 @@ def test_recent_context_is_bounded_to_answered_turns_and_owned_conversation(sql_
 def test_personal_decision_does_not_call_any_answer_model(sql_chat, monkeypatch):
     client, _, models = sql_chat
     identifier = client.post("/chat/conversations").json()["id"]
-    monkeypatch.setattr(models, "classify", lambda prompt: {"label": "personal_decision"})
+    monkeypatch.setattr(models, "classify", lambda prompt: classification("personal_decision"))
     monkeypatch.setattr(chat_routes, "local_free_models", lambda: [{"providerId": "local"}])
 
     def unexpected(*args):
@@ -287,13 +327,13 @@ def test_personal_decision_does_not_call_any_answer_model(sql_chat, monkeypatch)
 
 
 @pytest.mark.parametrize("acceptance", [{}, {"acceptPersonalResponse": False}])
-def test_personal_informativa_preview_can_repeat_without_consuming_usage(sql_chat, monkeypatch, acceptance):
+def test_personal_informativa_preview_can_repeat_without_spending_reply_quota(sql_chat, monkeypatch, acceptance):
     client, database, models = sql_chat
     identifier = client.post("/chat/conversations").json()["id"]
     endpoint = f"/chat/conversations/{identifier}/messages"
     previous = client.post(endpoint, json={"prompt": "Explicá una API", "requestId": str(uuid4())}).json()
-    classification = {"label": "personal_informativa", "group": "personal", "confidence": 0.91, "status": "aceptada", "needs_human_review": False}
-    monkeypatch.setattr(models, "classify", lambda prompt: classification)
+    result_classification = classification("personal_informativa")
+    monkeypatch.setattr(models, "classify", lambda prompt: result_classification)
 
     def unexpected(*args):
         pytest.fail("An unconfirmed personal response must not be generated")
@@ -309,7 +349,7 @@ def test_personal_informativa_preview_can_repeat_without_consuming_usage(sql_cha
         assert response.headers["cache-control"] == "no-store"
         preview = response.json()
         assert preview["confirmationRequired"] is True
-        assert preview["classification"] == classification
+        assert preview["classification"] == result_classification
         assert preview["conversation"] == previous["conversation"]
         assert preview["messages"] == previous["messages"]
         assert preview["usageLock"]["blocked"] is False
@@ -321,10 +361,49 @@ def test_personal_informativa_preview_can_repeat_without_consuming_usage(sql_cha
     assert turn["completed_at"] is None
     assert len(database.query("SELECT * FROM messages")) == 2
     assert len(database.query("SELECT * FROM usage_events")) == event_count
+    assert database.query(
+        "SELECT hit_count FROM abuse_counters WHERE scope='classification-account-daily' AND subject='chat@example.com'"
+    )[0]["hit_count"] == 3
     dashboard = client.get("/usage/dashboard").json()
     assert dashboard["summary"]["totalQueries"] == 1
     assert dashboard["summary"]["personalQueries"] == 0
     assert client.post(endpoint, json={**payload, "prompt": "Otra consulta", "acceptPersonalResponse": True}).status_code == 409
+
+
+def test_classifier_review_state_fails_closed_and_counts_as_personal(sql_chat, monkeypatch):
+    client, _, models = sql_chat
+    identifier = client.post("/chat/conversations").json()["id"]
+    monkeypatch.setattr(models, "classify", lambda prompt: classification("no_personal", 0.61, "baja_confianza", True))
+
+    def unexpected(*args):
+        pytest.fail("A low-confidence classification must not reach a response model")
+
+    monkeypatch.setattr(chat_routes.AIResponder, "generate", unexpected)
+    response = client.post(
+        f"/chat/conversations/{identifier}/messages",
+        json={"prompt": "Consulta", "requestId": str(uuid4()), "providerId": "local", "modelId": "qwen3-local"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["messages"][-1]["classification"]["label"] == "personal_decision"
+    assert response.json()["messages"][-1]["classification"]["classifierLabel"] == "no_personal"
+    assert response.json()["usageLock"]["personalQuestions"] == 1
+
+
+def test_classification_preview_budget_stops_before_model_call_and_turn_write(sql_chat, monkeypatch):
+    client, database, models = sql_chat
+    monkeypatch.setenv("BLOCIA_CLASSIFICATION_MAX_PER_USER_PER_DAY", "1")
+    identifier = client.post("/chat/conversations").json()["id"]
+    endpoint = f"/chat/conversations/{identifier}/messages"
+
+    allowed = client.post(endpoint, json={"prompt": "Primera", "requestId": str(uuid4())})
+    limited = client.post(endpoint, json={"prompt": "Segunda", "requestId": str(uuid4())})
+
+    assert allowed.status_code == 200
+    assert limited.status_code == 429
+    assert int(limited.headers["Retry-After"]) > 0
+    assert models.calls == 1
+    assert database.query("SELECT COUNT(*) AS total FROM chat_turns")[0]["total"] == 1
 
 
 def test_personal_informativa_generates_once_after_confirmation(sql_chat, monkeypatch):
@@ -333,7 +412,7 @@ def test_personal_informativa_generates_once_after_confirmation(sql_chat, monkey
     endpoint = f"/chat/conversations/{identifier}/messages"
     request_id = str(uuid4())
     repository = ChatRepository(database)
-    monkeypatch.setattr(models, "classify", lambda prompt: {"label": "personal_informativa"})
+    monkeypatch.setattr(models, "classify", lambda prompt: classification("personal_informativa"))
     monkeypatch.setattr(chat_routes, "local_free_models", lambda: [{"providerId": "local"}])
     generated = []
 
@@ -384,7 +463,7 @@ def test_personal_informativa_predefined_response_requires_confirmation(sql_chat
     client, database, models = sql_chat
     identifier = client.post("/chat/conversations").json()["id"]
     endpoint = f"/chat/conversations/{identifier}/messages"
-    monkeypatch.setattr(models, "classify", lambda prompt: {"label": "personal_informativa"})
+    monkeypatch.setattr(models, "classify", lambda prompt: classification("personal_informativa"))
 
     def unexpected(*args):
         pytest.fail("A predefined response does not require a response model")
@@ -417,7 +496,7 @@ def test_pending_turn_prevents_parallel_personal_usage_in_another_conversation(s
                 f"/chat/conversations/{second_identifier}/messages",
                 json={"prompt": "Consulta paralela", "requestId": str(uuid4()), "acceptPersonalResponse": True},
             ))
-        return {"label": "personal_informativa"}
+        return classification("personal_informativa")
 
     monkeypatch.setattr(models, "classify", classify)
     response = client.post(
