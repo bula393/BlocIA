@@ -54,6 +54,7 @@ class Configuration:
     release: str
     image_prefix: str
     application_ids: dict[str, str]
+    deploy_classifier: bool = False
     registry_username: str | None = None
     registry_password: str | None = None
 
@@ -67,13 +68,18 @@ class Configuration:
         if not IMAGE_PREFIX.fullmatch(prefix) or ".." in prefix or prefix.endswith("/"):
             raise DeploymentError("GHCR_IMAGE_PREFIX debe tener el formato ghcr.io/propietario/repositorio en minúsculas.")
 
+        classifier_flag = environment.get("DOKPLOY_DEPLOY_CLASIFICADOR", "false").strip().lower()
+        if classifier_flag not in {"", "true", "false"}:
+            raise DeploymentError("DOKPLOY_DEPLOY_CLASIFICADOR debe ser true o false.")
+        deploy_classifier = classifier_flag == "true"
+        selected_applications = tuple(item for item in APPLICATIONS if item[0] != "inference" or deploy_classifier)
         application_ids = {
             image_name: required(environment, variable)
-            for image_name, _label, variable in APPLICATIONS
+            for image_name, _label, variable in selected_applications
         }
         if any(not re.fullmatch(r"[A-Za-z0-9_-]+", app_id) for app_id in application_ids.values()):
             raise DeploymentError("Los IDs de las tres Applications de Dokploy tienen un formato inválido.")
-        if len(set(application_ids.values())) != len(APPLICATIONS):
+        if len(set(application_ids.values())) != len(selected_applications):
             raise DeploymentError("Cada servicio debe tener un ID de Application diferente en Dokploy.")
 
         registry_username = environment.get("GHCR_USERNAME", "").strip() or None
@@ -82,7 +88,7 @@ class Configuration:
             raise DeploymentError("GHCR_USERNAME es obligatorio si configurás GHCR_READ_TOKEN.")
 
         return cls(url, required(environment, "DOKPLOY_API_KEY"), release, prefix,
-                   application_ids, registry_username, registry_password)
+                   application_ids, deploy_classifier, registry_username, registry_password)
 
 
 class NoRedirects(HTTPRedirectHandler):
@@ -138,7 +144,8 @@ def deploy_applications(config: Configuration, client: DokployClient, report: di
     """Update all image references first, then request deployment in dependency order."""
     report["services"] = {}
     targets = []
-    for image_name, label, _variable in APPLICATIONS:
+    selected_applications = tuple(item for item in APPLICATIONS if item[0] != "inference" or config.deploy_classifier)
+    for image_name, label, _variable in selected_applications:
         application_id = config.application_ids[image_name]
         image = f"{config.image_prefix}-{image_name}:{config.release}"
         client.save_docker_provider(application_id=application_id, image=image)
@@ -157,7 +164,8 @@ def main() -> int:
         report["release"] = config.release
         deploy_applications(config, DokployClient(config), report)
         report["status"] = "success"
-        print(f"Solicitados los despliegues de back, front y clasificador para {config.release}.")
+        services = ", ".join(report["services"])
+        print(f"Solicitados los despliegues de {services} para {config.release}.")
         return 0
     except DeploymentError as error:
         report["message"] = str(error)

@@ -106,9 +106,10 @@ En GitHub abrí **Settings → Secrets and variables → Actions → Variables**
 | `DEPLOY_BRANCH` | `main` |
 | `GHCR_IMAGE_PREFIX` | `ghcr.io/bula393/blocia` |
 | `DOKPLOY_URL` | `https://policloud.ipm.edu.ar` |
-| `DOKPLOY_CLASIFICADOR_APPLICATION_ID` | `eVTqos01ugqO1i1s-YDxc` |
 | `DOKPLOY_BACK_APPLICATION_ID` | `CdbClN8o2saQvhFa2iOmK` |
 | `DOKPLOY_FRONT_APPLICATION_ID` | `o7wO6_qhR5KcKPT9FMYak` |
+| `DOKPLOY_DEPLOY_CLASIFICADOR` | Opcional; `false` por defecto. Ponelo en `true` solo al querer actualizar el clasificador. |
+| `DOKPLOY_CLASIFICADOR_APPLICATION_ID` | `eVTqos01ugqO1i1s-YDxc`; requerido solo si habilitás el clasificador. |
 | `IMAGE_PLATFORMS` | Opcional; por defecto `linux/amd64`. |
 
 Los tres IDs son de las Applications `clasificador`, `back` y `front` de este proyecto; no uses el ID del proyecto ni los IDs de los recursos Compose anteriores.
@@ -122,8 +123,8 @@ La API de Dokploy utilizada es [application.saveDockerProvider](https://docs.dok
 ## 6. Qué pasa en cada push
 
 1. Un push a `main` inicia `CI`: pruebas del backend, frontend, navegador, validaciones de despliegue y construcción de contenedores.
-2. Solo si CI termina correctamente, GitHub publica las tres imágenes etiquetadas con el SHA completo de ese commit.
-3. Cuando `DEPLOY_ENABLED=true`, Actions verifica que el commit siga siendo la punta de `main`, actualiza las imágenes Docker de las Applications y solicita el despliegue en orden `clasificador` → `back` → `front`.
+2. Solo si CI termina correctamente, GitHub publica las imágenes etiquetadas con el SHA completo de ese commit.
+3. Cuando `DEPLOY_ENABLED=true`, Actions verifica que el commit siga siendo la punta de `main`, actualiza back y front, y solicita ambos despliegues. El clasificador solo se incluye cuando `DOKPLOY_DEPLOY_CLASIFICADOR=true`.
 4. Abrí **Deployments** y **Logs** de cada Application en Dokploy para seguir su estado. Un resultado exitoso de Actions confirma que Dokploy aceptó las solicitudes; revisá allí que los contenedores queden saludables y que el dominio responda.
 
 La primera vez, mantené `DEPLOY_ENABLED=false` hasta completar PostgreSQL, las variables, los volúmenes, el dominio y la API key. Luego habilitalo y podés ejecutar **Actions → Deploy to Dokploy → Run workflow** para probar manualmente. El workflow manual vuelve a ejecutar CI antes de publicar. Los pushes a otras ramas y los pull requests ejecutan las comprobaciones, pero no despliegan producción.

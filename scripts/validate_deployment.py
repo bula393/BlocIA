@@ -147,8 +147,9 @@ def validate_workflows() -> None:
     require(invocation.get("if") == "steps.branch.outputs.current == 'true'", "production deployment must recheck the branch after the image builds")
     branch_check = next((step for step in steps if step.get("id") == "branch"), {})
     require("gh api --method GET" in branch_check.get("run", "") and '"$latest_sha" == "$COMMIT_SHA"' in branch_check.get("run", ""), "deployment must compare the current branch head against the verified release")
-    required_env = {"DOKPLOY_URL", "DOKPLOY_CLASIFICADOR_APPLICATION_ID", "DOKPLOY_BACK_APPLICATION_ID", "DOKPLOY_FRONT_APPLICATION_ID", "DOKPLOY_API_KEY", "RELEASE_TAG", "GHCR_IMAGE_PREFIX"}
+    required_env = {"DOKPLOY_URL", "DOKPLOY_BACK_APPLICATION_ID", "DOKPLOY_FRONT_APPLICATION_ID", "DOKPLOY_API_KEY", "RELEASE_TAG", "GHCR_IMAGE_PREFIX"}
     require(required_env <= invocation.get("env", {}).keys(), "Dokploy deployment is missing required configuration")
+    require(invocation.get("env", {}).get("DOKPLOY_DEPLOY_CLASIFICADOR") == "${{ vars.DOKPLOY_DEPLOY_CLASIFICADOR || 'false' }}", "classifier deployment must remain disabled unless explicitly enabled")
     require("DOKPLOY_COMPOSE_ID" not in invocation.get("env", {}), "default deployment must target the three Dokploy Applications")
     ci_container_steps = ci.get("jobs", {}).get("containers", {}).get("steps", [])
     compose_checks = "\n".join(step.get("run", "") for step in ci_container_steps)

@@ -24,13 +24,23 @@ def environment():
     }
 
 
-def test_configuration_maps_three_distinct_applications():
+def test_configuration_maps_back_and_front_by_default():
     config = deployment.Configuration.from_environment(environment())
     assert config.application_ids == {
-        "inference": "classificador-id",
         "api": "back-id",
         "frontend": "front-id",
     }
+    assert config.deploy_classifier is False
+
+
+def test_classifier_application_requires_explicit_enablement():
+    config = deployment.Configuration.from_environment({**environment(), "DOKPLOY_DEPLOY_CLASIFICADOR": "true"})
+    assert config.deploy_classifier is True
+    assert config.application_ids["inference"] == "classificador-id"
+    env = {**environment(), "DOKPLOY_DEPLOY_CLASIFICADOR": "true"}
+    del env["DOKPLOY_CLASIFICADOR_APPLICATION_ID"]
+    with pytest.raises(deployment.DeploymentError, match="DOKPLOY_CLASIFICADOR_APPLICATION_ID"):
+        deployment.Configuration.from_environment(env)
 
 
 @pytest.mark.parametrize("name,value", [
@@ -111,18 +121,31 @@ def test_images_are_updated_before_deployments_in_dependency_order():
     report = {}
     deployment.deploy_applications(config, Client(), report)
 
-    assert [event[0] for event in events] == ["save", "save", "save", "deploy", "deploy", "deploy"]
-    assert [event[2] for event in events[:3]] == [
-        f"ghcr.io/owner/blocia-inference:{'a' * 40}",
+    assert [event[0] for event in events] == ["save", "save", "deploy", "deploy"]
+    assert [event[2] for event in events[:2]] == [
         f"ghcr.io/owner/blocia-api:{'a' * 40}",
         f"ghcr.io/owner/blocia-frontend:{'a' * 40}",
     ]
-    assert [event[2] for event in events[3:]] == ["clasificador", "back", "front"]
+    assert [event[2] for event in events[2:]] == ["back", "front"]
     assert report["services"] == {
-        "clasificador": {"image": f"ghcr.io/owner/blocia-inference:{'a' * 40}", "status": "deployment_requested"},
         "back": {"image": f"ghcr.io/owner/blocia-api:{'a' * 40}", "status": "deployment_requested"},
         "front": {"image": f"ghcr.io/owner/blocia-frontend:{'a' * 40}", "status": "deployment_requested"},
     }
+
+
+def test_classifier_is_deployed_only_when_explicitly_enabled():
+    events = []
+    config = deployment.Configuration.from_environment({**environment(), "DOKPLOY_DEPLOY_CLASIFICADOR": "true"})
+
+    class Client:
+        def save_docker_provider(self, *, application_id, image):
+            events.append(("save", application_id, image))
+
+        def deploy_application(self, *, application_id, label):
+            events.append(("deploy", application_id, label))
+
+    deployment.deploy_applications(config, Client(), {})
+    assert [event[2] for event in events if event[0] == "deploy"] == ["clasificador", "back", "front"]
 
 
 def test_provider_update_failure_prevents_any_deployment():
@@ -143,3 +166,8 @@ def test_provider_update_failure_prevents_any_deployment():
     with pytest.raises(deployment.DeploymentError):
         deployment.deploy_applications(config, client, {})
     assert client.deployed == []
+
+
+def test_classifier_flag_rejects_ambiguous_value():
+    with pytest.raises(deployment.DeploymentError, match="true o false"):
+        deployment.Configuration.from_environment({**environment(), "DOKPLOY_DEPLOY_CLASIFICADOR": "yes"})
