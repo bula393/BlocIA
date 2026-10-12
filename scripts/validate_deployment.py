@@ -155,6 +155,8 @@ def validate_workflows() -> None:
     compose_checks = "\n".join(step.get("run", "") for step in ci_container_steps)
     for service in ("inference", "api", "frontend"):
         require(f"docker compose -f deploy/{service}/compose.yaml config --quiet" in compose_checks, f"CI must validate the separate {service} Compose resource")
+    api_build = next((step for step in ci_container_steps if step.get("name") == "Build API container"), {})
+    require(api_build.get("with", {}).get("build-args") == "RELEASE_TAG=${{ github.sha }}", "API smoke image must embed the verified release SHA")
 
 
 def main() -> int:
