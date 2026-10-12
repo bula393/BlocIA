@@ -28,6 +28,7 @@ def test_incomplete_production_configuration_fails_before_serving(monkeypatch, n
 def test_readiness_requires_classifier_and_exposes_release_only(monkeypatch, tmp_path):
     from app.infrastructure.database import Database, get_database
     monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.delenv("BLOCIA_IMAGE_RELEASE", raising=False)
     monkeypatch.setenv("RELEASE_TAG", "abc123")
     app = create_app()
     app.dependency_overrides[get_database] = lambda: Database(tmp_path / "ready.sqlite3")
@@ -39,6 +40,17 @@ def test_readiness_requires_classifier_and_exposes_release_only(monkeypatch, tmp
     assert response.json() == {"ready": False, "databaseReady": True, "classifierReady": False, "release": "abc123"}
     app.dependency_overrides[local_models] = lambda: SimpleNamespace(status=lambda: {"classifierReady": True})
     assert client.get("/ready").json()["ready"] is True
+
+
+def test_readiness_reports_the_release_baked_into_the_container(monkeypatch, tmp_path):
+    from app.infrastructure.database import Database, get_database
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("BLOCIA_IMAGE_RELEASE", "current-image")
+    monkeypatch.setenv("RELEASE_TAG", "stale-environment")
+    app = create_app()
+    app.dependency_overrides[get_database] = lambda: Database(tmp_path / "release.sqlite3")
+    app.dependency_overrides[local_models] = lambda: SimpleNamespace(status=lambda: {"classifierReady": False})
+    assert TestClient(app).get("/health").json()["release"] == "current-image"
 
 
 def test_google_oauth_does_not_require_an_additional_production_secret(monkeypatch):

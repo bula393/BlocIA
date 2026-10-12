@@ -25,4 +25,6 @@ class RuntimeSettings:
                 raise ValueError("FRONTEND_URL debe ser el origen HTTPS público, sin rutas, en producción.")
             if os.getenv("BLOCIA_INFERENCE_URL", "").strip() and not os.getenv("BLOCIA_INFERENCE_TOKEN", "").strip():
                 raise ValueError("BLOCIA_INFERENCE_TOKEN es obligatorio al separar la IA en producción.")
-        return cls(production, frontend_url, os.getenv("RELEASE_TAG", "development").strip() or "development")
+        release = (os.getenv("BLOCIA_IMAGE_RELEASE", "").strip()
+                   or os.getenv("RELEASE_TAG", "development").strip() or "development")
+        return cls(production, frontend_url, release)

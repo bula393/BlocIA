@@ -1,11 +1,13 @@
 # syntax=docker/dockerfile:1
 ARG PYTHON_IMAGE=python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258
 FROM ${PYTHON_IMAGE} AS base
+ARG RELEASE_TAG=development
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    ENVIRONMENT=production
+    ENVIRONMENT=production \
+    BLOCIA_IMAGE_RELEASE=${RELEASE_TAG}
 WORKDIR /app
 RUN groupadd --gid 10001 blocia \
     && useradd --uid 10001 --gid 10001 --create-home blocia \

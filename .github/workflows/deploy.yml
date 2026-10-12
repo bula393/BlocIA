@@ -1,9 +1,8 @@
 name: Deploy to Dokploy
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -17,13 +16,7 @@ jobs:
   eligible:
     name: Select the verified release
     if: >-
-      (github.event_name == 'workflow_dispatch' &&
-       github.ref == format('refs/heads/{0}', vars.DEPLOY_BRANCH || 'main')) ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_branch == (vars.DEPLOY_BRANCH || 'main') &&
-       github.event.workflow_run.head_repository.full_name == github.repository)
+      github.ref == format('refs/heads/{0}', vars.DEPLOY_BRANCH || 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -34,7 +27,7 @@ jobs:
       - name: Resolve immutable commit and registry prefix
         id: release
         env:
-          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          COMMIT_SHA: ${{ github.sha }}
           REPOSITORY_NAME: ${{ github.repository }}
           REQUESTED_IMAGE_PREFIX: ${{ vars.GHCR_IMAGE_PREFIX }}
           DEPLOYMENT_BRANCH: ${{ vars.DEPLOY_BRANCH || 'main' }}
@@ -56,25 +49,22 @@ jobs:
             printf 'Skipping an older verified commit because the deployment branch has advanced.\n'
           fi
 
-  verify-manual:
-    name: Verify manually requested release
+  verify-release:
+    name: Verify selected release
     needs: eligible
-    if: github.event_name == 'workflow_dispatch' && needs.eligible.outputs.current == 'true'
+    if: needs.eligible.outputs.current == 'true'
     uses: ./.github/workflows/ci.yml
     permissions:
       contents: read
 
   publish:
     name: Publish ${{ matrix.service }}
-    needs: [eligible, verify-manual]
+    needs: [eligible, verify-release]
     if: >-
       always() && !cancelled() &&
       needs.eligible.result == 'success' &&
       needs.eligible.outputs.current == 'true' &&
-      (
-        (github.event_name == 'workflow_run' && needs.verify-manual.result == 'skipped') ||
-        (github.event_name == 'workflow_dispatch' && needs.verify-manual.result == 'success')
-      )
+      needs.verify-release.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
