@@ -63,7 +63,7 @@ jobs:
 
   frontend:
     name: Frontend tests and build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
       run:
@@ -92,6 +92,7 @@ jobs:
       - name: Build frontend
         run: npm run build
       - name: Install Chromium
+        timeout-minutes: 5
         run: npx playwright install --with-deps chromium
       - name: Verify mobile interface, personal quota, Google callback and email verification
         run: npm run test:e2e -- tests/e2e/mobile-responsive.spec.ts tests/e2e/personal-quota.spec.ts tests/e2e/google-callback.spec.ts tests/e2e/perfil-tecnico-visual.spec.ts --workers=1 --timeout=90000 --reporter=line,junit --trace=retain-on-failure

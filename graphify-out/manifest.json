@@ -1674,10 +1674,10 @@
     "semantic_hash": "ead7a1c3497c2f2ddef2869bc51ab906"
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1791847490.9313276,
-    "seen": 1791855401.8852944,
-    "ast_hash": "dd7c75ef49f110ac4b70a861ae9117b0",
-    "semantic_hash": "dd7c75ef49f110ac4b70a861ae9117b0"
+    "mtime": 1793024810.7029016,
+    "seen": 1793024872.9616346,
+    "ast_hash": "0fceafa1f0703442c57d261c86990017",
+    "semantic_hash": ""
   },
   ".github/workflows/deploy.yml": {
     "mtime": 1791846936.9784224,
