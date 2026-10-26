@@ -93,7 +93,9 @@ jobs:
         run: npm run build
       - name: Install Chromium
         timeout-minutes: 5
-        run: npx playwright install --with-deps chromium
+        # GitHub's Ubuntu runner already includes Chromium's runtime libraries.
+        # Avoid upgrading system packages and downloading unrelated font packs.
+        run: npx playwright install chromium
       - name: Verify mobile interface, personal quota, Google callback and email verification
         run: npm run test:e2e -- tests/e2e/mobile-responsive.spec.ts tests/e2e/personal-quota.spec.ts tests/e2e/google-callback.spec.ts tests/e2e/perfil-tecnico-visual.spec.ts --workers=1 --timeout=90000 --reporter=line,junit --trace=retain-on-failure
       - name: Upload frontend results and browser evidence
