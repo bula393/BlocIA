@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "resolved": [
+    "Semantic spaces in all three mobile access views",
+    "Top of new view visible after scroll in previous view",
+    "Scroll reset after browser back and forward",
+    "Standalone and integrated mockup entry routes"
+  ],
+  "errors": []
+}

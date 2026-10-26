@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+import time
+
 from fastapi import APIRouter, Depends, Query
 
 from app.application.user.get_usage_summary import GetUsageSummary
@@ -25,4 +28,6 @@ def get_usage_dashboard(
 
 @router.get("/usage/limits")
 def get_usage_limits(mail: str = Depends(current_user_mail), database=Depends(get_database)):
-    return UsageAnalyticsRepository(database).current_lock(mail)
+    now = time.time()
+    return {**UsageAnalyticsRepository(database).current_lock(mail, now),
+            "serverTime": datetime.fromtimestamp(now, timezone.utc).isoformat()}

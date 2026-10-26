@@ -39,3 +39,10 @@ Thumbs.db
 back/data/
 back/models/
 back/.cache/
+
+# Graphify local caches, interpreter paths and dated backups
+graphify-out/cache/
+graphify-out/20??-??-??/
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/.rebuild.lock

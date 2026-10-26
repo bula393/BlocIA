@@ -1,0 +1,602 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-05T21:57:59Z",
+  "title": "Design System: BloqIA — mockup editorial",
+  "extensions": {
+    "colorMeta": {
+      "ultramar": {
+        "role": "primary",
+        "displayName": "Ultramar",
+        "tonalRamp": [
+          "oklch(15% 0.2227 266.04)",
+          "oklch(26% 0.2227 266.04)",
+          "oklch(37% 0.2227 266.04)",
+          "oklch(49% 0.2227 266.04)",
+          "oklch(60% 0.2227 266.04)",
+          "oklch(72% 0.2227 266.04)",
+          "oklch(84% 0.2227 266.04)",
+          "oklch(95% 0.2227 266.04)"
+        ]
+      },
+      "idea": {
+        "role": "secondary",
+        "displayName": "Idea",
+        "tonalRamp": [
+          "oklch(15% 0.1034 119.49)",
+          "oklch(26% 0.1034 119.49)",
+          "oklch(37% 0.1034 119.49)",
+          "oklch(49% 0.1034 119.49)",
+          "oklch(60% 0.1034 119.49)",
+          "oklch(72% 0.1034 119.49)",
+          "oklch(84% 0.1034 119.49)",
+          "oklch(95% 0.1034 119.49)"
+        ]
+      },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "tonalRamp": [
+          "oklch(15% 0.0212 228.23)",
+          "oklch(26% 0.0212 228.23)",
+          "oklch(37% 0.0212 228.23)",
+          "oklch(49% 0.0212 228.23)",
+          "oklch(60% 0.0212 228.23)",
+          "oklch(72% 0.0212 228.23)",
+          "oklch(84% 0.0212 228.23)",
+          "oklch(95% 0.0212 228.23)"
+        ]
+      },
+      "papel": {
+        "role": "neutral",
+        "displayName": "Papel",
+        "tonalRamp": [
+          "oklch(15% 0.0067 97.35)",
+          "oklch(26% 0.0067 97.35)",
+          "oklch(37% 0.0067 97.35)",
+          "oklch(49% 0.0067 97.35)",
+          "oklch(60% 0.0067 97.35)",
+          "oklch(72% 0.0067 97.35)",
+          "oklch(84% 0.0067 97.35)",
+          "oklch(95% 0.0067 97.35)"
+        ]
+      },
+      "blanco": {
+        "role": "neutral",
+        "displayName": "Blanco",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.88)",
+          "oklch(26% 0.0000 89.88)",
+          "oklch(37% 0.0000 89.88)",
+          "oklch(49% 0.0000 89.88)",
+          "oklch(60% 0.0000 89.88)",
+          "oklch(72% 0.0000 89.88)",
+          "oklch(84% 0.0000 89.88)",
+          "oklch(95% 0.0000 89.88)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Lienzo interior",
+        "tonalRamp": [
+          "oklch(15% 0.0039 106.47)",
+          "oklch(26% 0.0039 106.47)",
+          "oklch(37% 0.0039 106.47)",
+          "oklch(49% 0.0039 106.47)",
+          "oklch(60% 0.0039 106.47)",
+          "oklch(72% 0.0039 106.47)",
+          "oklch(84% 0.0039 106.47)",
+          "oklch(95% 0.0039 106.47)"
+        ]
+      },
+      "gris-landing": {
+        "role": "neutral",
+        "displayName": "Gris de landing",
+        "tonalRamp": [
+          "oklch(15% 0.0138 231.89)",
+          "oklch(26% 0.0138 231.89)",
+          "oklch(37% 0.0138 231.89)",
+          "oklch(49% 0.0138 231.89)",
+          "oklch(60% 0.0138 231.89)",
+          "oklch(72% 0.0138 231.89)",
+          "oklch(84% 0.0138 231.89)",
+          "oklch(95% 0.0138 231.89)"
+        ]
+      },
+      "gris-workspace": {
+        "role": "neutral",
+        "displayName": "Gris de workspace",
+        "tonalRamp": [
+          "oklch(15% 0.0134 231.84)",
+          "oklch(26% 0.0134 231.84)",
+          "oklch(37% 0.0134 231.84)",
+          "oklch(49% 0.0134 231.84)",
+          "oklch(60% 0.0134 231.84)",
+          "oklch(72% 0.0134 231.84)",
+          "oklch(84% 0.0134 231.84)",
+          "oklch(95% 0.0134 231.84)"
+        ]
+      },
+      "linea-landing": {
+        "role": "neutral",
+        "displayName": "Divisor público",
+        "tonalRamp": [
+          "oklch(15% 0.0075 132.42)",
+          "oklch(26% 0.0075 132.42)",
+          "oklch(37% 0.0075 132.42)",
+          "oklch(49% 0.0075 132.42)",
+          "oklch(60% 0.0075 132.42)",
+          "oklch(72% 0.0075 132.42)",
+          "oklch(84% 0.0075 132.42)",
+          "oklch(95% 0.0075 132.42)"
+        ]
+      },
+      "linea-workspace": {
+        "role": "neutral",
+        "displayName": "Divisor interior",
+        "tonalRamp": [
+          "oklch(15% 0.0068 115.72)",
+          "oklch(26% 0.0068 115.72)",
+          "oklch(37% 0.0068 115.72)",
+          "oklch(49% 0.0068 115.72)",
+          "oklch(60% 0.0068 115.72)",
+          "oklch(72% 0.0068 115.72)",
+          "oklch(84% 0.0068 115.72)",
+          "oklch(95% 0.0068 115.72)"
+        ]
+      },
+      "azul-hover-landing": {
+        "role": "primary",
+        "displayName": "Ultramar hover público",
+        "tonalRamp": [
+          "oklch(15% 0.2067 265.81)",
+          "oklch(26% 0.2067 265.81)",
+          "oklch(37% 0.2067 265.81)",
+          "oklch(49% 0.2067 265.81)",
+          "oklch(60% 0.2067 265.81)",
+          "oklch(72% 0.2067 265.81)",
+          "oklch(84% 0.2067 265.81)",
+          "oklch(95% 0.2067 265.81)"
+        ]
+      },
+      "azul-hover-workspace": {
+        "role": "primary",
+        "displayName": "Ultramar hover interior",
+        "tonalRamp": [
+          "oklch(15% 0.2061 265.31)",
+          "oklch(26% 0.2061 265.31)",
+          "oklch(37% 0.2061 265.31)",
+          "oklch(49% 0.2061 265.31)",
+          "oklch(60% 0.2061 265.31)",
+          "oklch(72% 0.2061 265.31)",
+          "oklch(84% 0.2061 265.31)",
+          "oklch(95% 0.2061 265.31)"
+        ]
+      },
+      "campo-borde": {
+        "role": "neutral",
+        "displayName": "Contorno de campo",
+        "tonalRamp": [
+          "oklch(15% 0.0122 133.39)",
+          "oklch(26% 0.0122 133.39)",
+          "oklch(37% 0.0122 133.39)",
+          "oklch(49% 0.0122 133.39)",
+          "oklch(60% 0.0122 133.39)",
+          "oklch(72% 0.0122 133.39)",
+          "oklch(84% 0.0122 133.39)",
+          "oklch(95% 0.0122 133.39)"
+        ]
+      },
+      "clasificacion-fondo": {
+        "role": "neutral",
+        "displayName": "Clasificación · fondo",
+        "tonalRamp": [
+          "oklch(15% 0.0136 120.28)",
+          "oklch(26% 0.0136 120.28)",
+          "oklch(37% 0.0136 120.28)",
+          "oklch(49% 0.0136 120.28)",
+          "oklch(60% 0.0136 120.28)",
+          "oklch(72% 0.0136 120.28)",
+          "oklch(84% 0.0136 120.28)",
+          "oklch(95% 0.0136 120.28)"
+        ]
+      },
+      "clasificacion-texto": {
+        "role": "neutral",
+        "displayName": "Clasificación · texto",
+        "tonalRamp": [
+          "oklch(15% 0.0403 131.93)",
+          "oklch(26% 0.0403 131.93)",
+          "oklch(37% 0.0403 131.93)",
+          "oklch(49% 0.0403 131.93)",
+          "oklch(60% 0.0403 131.93)",
+          "oklch(72% 0.0403 131.93)",
+          "oklch(84% 0.0403 131.93)",
+          "oklch(95% 0.0403 131.93)"
+        ]
+      },
+      "clasificacion-linea": {
+        "role": "neutral",
+        "displayName": "Clasificación · divisor",
+        "tonalRamp": [
+          "oklch(15% 0.0211 124.68)",
+          "oklch(26% 0.0211 124.68)",
+          "oklch(37% 0.0211 124.68)",
+          "oklch(49% 0.0211 124.68)",
+          "oklch(60% 0.0211 124.68)",
+          "oklch(72% 0.0211 124.68)",
+          "oklch(84% 0.0211 124.68)",
+          "oklch(95% 0.0211 124.68)"
+        ]
+      },
+      "demo-fondo": {
+        "role": "neutral",
+        "displayName": "Demo · fondo",
+        "tonalRamp": [
+          "oklch(15% 0.0152 123.04)",
+          "oklch(26% 0.0152 123.04)",
+          "oklch(37% 0.0152 123.04)",
+          "oklch(49% 0.0152 123.04)",
+          "oklch(60% 0.0152 123.04)",
+          "oklch(72% 0.0152 123.04)",
+          "oklch(84% 0.0152 123.04)",
+          "oklch(95% 0.0152 123.04)"
+        ]
+      },
+      "demo-texto": {
+        "role": "neutral",
+        "displayName": "Demo · texto",
+        "tonalRamp": [
+          "oklch(15% 0.0400 133.34)",
+          "oklch(26% 0.0400 133.34)",
+          "oklch(37% 0.0400 133.34)",
+          "oklch(49% 0.0400 133.34)",
+          "oklch(60% 0.0400 133.34)",
+          "oklch(72% 0.0400 133.34)",
+          "oklch(84% 0.0400 133.34)",
+          "oklch(95% 0.0400 133.34)"
+        ]
+      },
+      "demo-borde": {
+        "role": "neutral",
+        "displayName": "Demo · borde",
+        "tonalRamp": [
+          "oklch(15% 0.0168 121.80)",
+          "oklch(26% 0.0168 121.80)",
+          "oklch(37% 0.0168 121.80)",
+          "oklch(49% 0.0168 121.80)",
+          "oklch(60% 0.0168 121.80)",
+          "oklch(72% 0.0168 121.80)",
+          "oklch(84% 0.0168 121.80)",
+          "oklch(95% 0.0168 121.80)"
+        ]
+      },
+      "peligro": {
+        "role": "neutral",
+        "displayName": "Acción de eliminación",
+        "tonalRamp": [
+          "oklch(15% 0.1484 26.60)",
+          "oklch(26% 0.1484 26.60)",
+          "oklch(37% 0.1484 26.60)",
+          "oklch(49% 0.1484 26.60)",
+          "oklch(60% 0.1484 26.60)",
+          "oklch(72% 0.1484 26.60)",
+          "oklch(84% 0.1484 26.60)",
+          "oklch(95% 0.1484 26.60)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Titular público",
+        "purpose": "Hero de landing en Manrope."
+      },
+      "headline": {
+        "displayName": "Titular personal",
+        "purpose": "Titulares de páginas del workspace en Lora."
+      },
+      "title": {
+        "displayName": "Título interior",
+        "purpose": "Secciones menores del workspace en Manrope."
+      },
+      "body": {
+        "displayName": "Base pública",
+        "purpose": "Base de la landing; cada párrafo conserva sus estilos de sección."
+      },
+      "body-workspace": {
+        "displayName": "Base del workspace",
+        "purpose": "Base del espacio interior y formularios."
+      },
+      "reading-example": {
+        "displayName": "Pasaje editorial",
+        "purpose": "Ejemplos de conversación pública en Lora; la cursiva dispone de archivo local."
+      },
+      "transcript": {
+        "displayName": "Respuesta del chat",
+        "purpose": "Markdown y consultas en Manrope, con ancho máximo de 72ch."
+      },
+      "label": {
+        "displayName": "Etiqueta compacta",
+        "purpose": "Etiquetas de formularios observadas; no prescribe metadatos pequeños como tamaño universal."
+      }
+    },
+    "shadows": [
+      {
+        "name": "workspace-preview",
+        "value": "0 24px 45px -26px #18252B30",
+        "purpose": "Adelanto del workspace en la landing."
+      },
+      {
+        "name": "composer",
+        "value": "0 6px 16px -10px #18252b1a",
+        "purpose": "Campo de composición interior."
+      }
+    ],
+    "motion": [
+      {
+        "name": "public-action",
+        "value": "background .2s, transform .2s",
+        "purpose": "Hover público con desplazamiento de 2px."
+      },
+      {
+        "name": "interior-action",
+        "value": "background 150ms ease, border-color 150ms ease",
+        "purpose": "Acciones compactas interiores."
+      },
+      {
+        "name": "sidebar-nav",
+        "value": "color 140ms ease, background 140ms ease",
+        "purpose": "Cambio de estado de navegación."
+      },
+      {
+        "name": "mobile-sidebar",
+        "value": "transform 250ms cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Apertura del lateral móvil."
+      },
+      {
+        "name": "chapter-emphasis",
+        "value": "opacity .35s",
+        "purpose": "Énfasis según intersección del capítulo."
+      },
+      {
+        "name": "conversation-change",
+        "value": "mk-conversation-change .4s ease-out",
+        "purpose": "Cambio de panel desde blur de 1px y translateY(5px) a la posición final."
+      },
+      {
+        "name": "demo-pending",
+        "value": "mw-pulse 1s ease-in-out infinite alternate",
+        "purpose": "Opacidad del indicador de fase de demostración."
+      },
+      {
+        "name": "hero-scroll",
+        "value": "translateY(min(scrollY * .07, 32px)) scale(1.06)",
+        "purpose": "Parallax acotado por lectura; expresión documental del cálculo JavaScript."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation: none; transition: none; scroll-behavior: auto; hero transform: none",
+        "purpose": "Regla aplicada bajo prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "public-wide",
+        "value": "min-width: 1600px"
+      },
+      {
+        "name": "workspace-wide",
+        "value": "min-width: 1500px"
+      },
+      {
+        "name": "compact-desktop",
+        "value": "max-width: 1100px"
+      },
+      {
+        "name": "workspace-profile-stack",
+        "value": "max-width: 850px"
+      },
+      {
+        "name": "public-menu",
+        "value": "max-width: 800px"
+      },
+      {
+        "name": "workspace-mobile",
+        "value": "max-width: 700px"
+      },
+      {
+        "name": "public-stack",
+        "value": "max-width: 600px"
+      },
+      {
+        "name": "workspace-short-desktop",
+        "value": "max-height: 740px and min-width: 701px"
+      }
+    ],
+    "scope": {
+      "artifactPaths": [
+        "front/src/mockup/Mockup.tsx",
+        "front/src/mockup/mockup.css",
+        "front/src/mockup/Workspace.tsx",
+        "front/src/mockup/workspace.css",
+        "front/src/mockup/brand.tsx"
+      ],
+      "entryPoints": [
+        "/mockup",
+        "/mockup.html"
+      ],
+      "hashViews": [
+        "#/chat",
+        "#/history",
+        "#/profile",
+        "#/providers",
+        "#/usage",
+        "#/login",
+        "#/register",
+        "#/google"
+      ],
+      "status": "Propuesta implementada para revisión; identidad no aprobada como reemplazo de la aplicación original.",
+      "reviewStatus": "La revisión externa de cierre confirmó las tres correcciones de separación de palabras móviles, reinicio del scroll y carga aislada de mockup; build final y verificaciones de esa tanda completados. No registra aprobación humana ni ausencia de defectos en toda la superficie.",
+      "backend": "Sin cambios de backend, publicación ni servicios reales; datos sintéticos y secretos descartados.",
+      "preservedReference": "apartadoDIseñoGraficoBlocIA.md y las páginas originales quedan fuera del sistema del mockup."
+    },
+    "assets": [
+      {
+        "path": "front/public/mockup/logo.svg",
+        "origin": "SVG original dibujado en código para el mockup.",
+        "notes": "Símbolo de cuatro bloques; Brand reutiliza la geometría con currentColor."
+      },
+      {
+        "path": "front/public/mockup/images/thinking-desk.png",
+        "origin": "OpenAI built-in image_gen.imagegen",
+        "generatedDate": "2026-10-05",
+        "provenance": "front/public/mockup/images/thinking-desk.json",
+        "dimensions": "1536×1024",
+        "promptSidecar": "front/public/mockup/images/thinking-desk.prompt.txt",
+        "embeddedMetadata": "El PNG conserva su prompt en metadata."
+      },
+      {
+        "path": "front/public/mockup/images/quiet-study.png",
+        "origin": "OpenAI built-in image_gen.imagegen",
+        "generatedDate": "2026-10-05",
+        "provenance": "front/public/mockup/images/quiet-study.json",
+        "dimensions": "1024×1536",
+        "promptSidecar": "front/public/mockup/images/quiet-study.prompt.txt",
+        "embeddedMetadata": "El PNG conserva su prompt en metadata."
+      }
+    ],
+    "documentNotes": [
+      "Los valores primitivos viven únicamente en el frontmatter de DESIGN.md.",
+      "Las rampas OKLCH son síntesis para la visualización del panel; no constituyen tokens implementados ni tonos adicionales de marca.",
+      "Los snippets contienen CSS autónomo y fallbacks literales, porque los tokens de la aplicación están acotados a .mockup-app y .mw-root.",
+      "No se canoniza el tamaño de metadatos de 8–10px como norma para nuevas superficies."
+    ]
+  },
+  "components": [
+    {
+      "name": "Acción principal pública",
+      "kind": "button",
+      "refersTo": "button-landing-primary",
+      "description": "Acción que abre el espacio desde la landing.",
+      "html": "<button class=\"ds-landing-primary\" type=\"button\">Abrí tu espacio <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 12h15M13 5l7 7-7 7\"/></svg></button>",
+      "css": ".ds-landing-primary{display:inline-flex;align-items:center;justify-content:center;gap:28px;border:1px solid var(--mk-blue, #244ADA);background:var(--mk-blue, #244ADA);color:#fff;padding:17px 24px;border-radius:5px;font:600 14px/1.6 Manrope,sans-serif;white-space:nowrap;cursor:pointer;transition:background .2s,transform .2s}.ds-landing-primary:hover{background:#193ABD;transform:translateY(-2px)}.ds-landing-primary:focus-visible{outline:3px solid var(--mk-blue, #244ADA);outline-offset:5px}.ds-landing-primary:disabled{cursor:not-allowed;opacity:.55}@media(prefers-reduced-motion:reduce){.ds-landing-primary{transition:none}}"
+    },
+    {
+      "name": "Acción clara sobre azul",
+      "kind": "button",
+      "refersTo": "button-landing-light",
+      "description": "Variante usada por el cierre público sobre ultramar.",
+      "html": "<div class=\"ds-blue-context\"><button class=\"ds-landing-light\" type=\"button\">Empezá una conversación <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 12h15M13 5l7 7-7 7\"/></svg></button></div>",
+      "css": ".ds-blue-context{background:var(--mk-blue, #244ADA);padding:24px}.ds-landing-light{display:inline-flex;align-items:center;gap:28px;border:1px solid var(--mk-paper, #F4F3EE);background:var(--mk-paper, #F4F3EE);color:var(--mk-blue, #244ADA);padding:17px 24px;border-radius:5px;font:600 14px/1.6 Manrope,sans-serif;cursor:pointer;transition:background .2s,transform .2s}.ds-landing-light:hover{background:var(--mk-lime, #DAED9E);transform:translateY(-2px)}.ds-landing-light:focus-visible{outline:3px solid var(--mk-blue, #244ADA);outline-offset:5px}@media(prefers-reduced-motion:reduce){.ds-landing-light{transition:none}}"
+    },
+    {
+      "name": "Acción principal interior",
+      "kind": "button",
+      "refersTo": "button-workspace-primary",
+      "description": "Guardar, conectar o continuar dentro de la demo.",
+      "html": "<button class=\"ds-workspace-primary\" type=\"button\">Guardar cambios <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 12h15M13 5l7 7-7 7\"/></svg></button>",
+      "css": ".ds-workspace-primary{display:inline-flex;gap:9px;align-items:center;justify-content:center;padding:11px 16px;border:1px solid var(--mw-blue, #244ADA);border-radius:7px;background:var(--mw-blue, #244ADA);color:#fff;font:600 11px/1.5 Manrope,sans-serif;cursor:pointer;transition:background 150ms ease,border-color 150ms ease}.ds-workspace-primary:hover{border-color:#183DBF;background:#183DBF}.ds-workspace-primary:focus-visible{outline:3px solid var(--mw-blue, #244ADA);outline-offset:4px}.ds-workspace-primary:disabled{cursor:not-allowed;opacity:.45}@media(prefers-reduced-motion:reduce){.ds-workspace-primary{transition:none}}"
+    },
+    {
+      "name": "Acción secundaria interior",
+      "kind": "button",
+      "refersTo": "button-workspace-secondary",
+      "description": "Variante blanca de la acción compacta, con el borde común del workspace.",
+      "html": "<button class=\"ds-workspace-secondary\" type=\"button\">Continuar</button>",
+      "css": ".ds-workspace-secondary{display:inline-flex;gap:9px;align-items:center;justify-content:center;padding:11px 16px;border:1px solid var(--mw-line, #DEDFDA);border-radius:7px;background:#fff;color:var(--mw-ink, #18252B);font:600 11px/1.5 Manrope,sans-serif;cursor:pointer;transition:background 150ms ease,border-color 150ms ease}.ds-workspace-secondary:focus-visible{outline:3px solid var(--mw-blue, #244ADA);outline-offset:4px}.ds-workspace-secondary:disabled{cursor:not-allowed;opacity:.45}@media(prefers-reduced-motion:reduce){.ds-workspace-secondary{transition:none}}"
+    },
+    {
+      "name": "Nueva conversación",
+      "kind": "button",
+      "refersTo": "button-new-chat",
+      "description": "Acción de lima dentro de la navegación oscura.",
+      "html": "<div class=\"ds-sidebar-context\"><button class=\"ds-new-chat\" type=\"button\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg> Nueva conversación <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 12h15M13 5l7 7-7 7\"/></svg></button></div>",
+      "css": ".ds-sidebar-context{background:var(--mw-ink, #18252B);padding:18px;max-width:240px}.ds-new-chat{display:flex;align-items:center;gap:9px;border:1px solid #51615D;border-radius:8px;color:var(--mw-ink, #18252B);background:var(--mw-lime, #DAED9E);padding:12px 11px;width:100%;font:650 12px/1.6 Manrope,sans-serif;cursor:pointer;transition:background 160ms ease}.ds-new-chat svg:last-child{margin-left:auto}.ds-new-chat:hover{background:#E9F4C2}.ds-new-chat:focus-visible{outline:3px solid var(--mw-lime, #DAED9E);outline-offset:4px}.ds-new-chat:disabled{cursor:not-allowed;opacity:.45}@media(prefers-reduced-motion:reduce){.ds-new-chat{transition:none}}"
+    },
+    {
+      "name": "Campo personal",
+      "kind": "input",
+      "refersTo": "text-field",
+      "description": "Etiqueta exterior y campo blanco para datos del perfil o acceso.",
+      "html": "<label class=\"ds-field-label\">Nombre visible<input class=\"ds-field\" type=\"text\" placeholder=\"¿Cómo querés que te llamemos?\"/></label>",
+      "css": ".ds-field-label{display:grid;gap:8px;max-width:360px;color:var(--mw-ink, #18252B);font:650 10px/1.6 Manrope,sans-serif}.ds-field{width:100%;min-width:0;height:42px;color:var(--mw-ink, #18252B);background:#fff;border:1px solid #CDD2CA;border-radius:6px;padding:11px 12px;font:400 12px/1.5 Manrope,sans-serif;caret-color:var(--mw-blue, #244ADA)}.ds-field::placeholder{color:var(--mw-muted, #687176);opacity:1}.ds-field:focus{outline:2px solid var(--mw-blue, #244ADA);outline-offset:2px}"
+    },
+    {
+      "name": "Navegación lateral",
+      "kind": "nav",
+      "refersTo": "sidebar-nav",
+      "description": "Estado actual y enlaces interiores sobre tinta.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Navegación de ejemplo\"><button class=\"ds-nav-button\" type=\"button\" aria-current=\"page\">Conversación</button><button class=\"ds-nav-button\" type=\"button\">Historial</button><button class=\"ds-nav-button\" type=\"button\">Tu perfil</button></nav>",
+      "css": ".ds-nav{display:grid;gap:4px;max-width:240px;padding:18px;background:var(--mw-ink, #18252B)}.ds-nav-button{display:flex;align-items:center;gap:12px;width:100%;color:#C9D0CE;background:transparent;border:0;border-radius:7px;padding:11px 12px;font:400 12px/1.6 Manrope,sans-serif;text-align:left;cursor:pointer;transition:color 140ms ease,background 140ms ease}.ds-nav-button:hover{background:#25353A;color:#fff}.ds-nav-button[aria-current=\"page\"]{background:#2F4044;color:#fff}.ds-nav-button:focus-visible{outline:3px solid var(--mw-lime, #DAED9E);outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-nav-button{transition:none}}"
+    },
+    {
+      "name": "Procedencia de ejemplo",
+      "kind": "chip",
+      "refersTo": "demo-badge",
+      "description": "Etiqueta no interactiva que identifica contenido demostrativo.",
+      "html": "<span class=\"ds-demo-badge\"><i aria-hidden=\"true\"></i>Datos de ejemplo</span>",
+      "css": ".ds-demo-badge{display:inline-flex;align-items:center;gap:6px;border-radius:4px;border:1px solid #D6DACE;padding:3px 7px;color:#526049;background:#EDF1E6;font:600 9px/1.5 Manrope,sans-serif;white-space:nowrap}.ds-demo-badge i{width:4px;height:4px;border-radius:50%;background:#61773A}"
+    },
+    {
+      "name": "Compositor",
+      "kind": "card",
+      "refersTo": "composer",
+      "description": "Superficie de escritura con selección de modelo y envío; el foco cambia el contorno.",
+      "html": "<form class=\"ds-composer\"><textarea aria-label=\"Consulta de ejemplo\" rows=\"2\" maxlength=\"4000\" placeholder=\"¿Qué te gustaría entender mejor?\"></textarea><div class=\"ds-composer-controls\"><select aria-label=\"Modelo de ejemplo\"><option>Qwen3-0.6B · demo</option><option>Gemini · ejemplo A</option></select><small>Enter para enviar</small><button class=\"ds-composer-send\" type=\"button\" aria-label=\"Enviar consulta de ejemplo\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 12h15M13 5l7 7-7 7\"/></svg></button></div></form>",
+      "css": ".ds-composer{max-width:790px;background:#fff;border:1px solid #CED3CD;border-radius:9px;box-shadow:0 6px 16px -10px #18252B1A;padding:14px 15px 10px}.ds-composer:focus-within{border-color:#8294DA}.ds-composer textarea{resize:none;border:0;outline:none;width:100%;padding:0;background:transparent;min-height:43px;max-height:160px;color:var(--mw-ink, #18252B);caret-color:var(--mw-blue, #244ADA);font:400 12px/1.65 Manrope,sans-serif}.ds-composer textarea::placeholder{color:var(--mw-muted, #687176);opacity:1}.ds-composer-controls{display:flex;gap:12px;align-items:center;margin-top:12px}.ds-composer-controls select{min-width:0;max-width:300px;border:0;color:#455046;background:#F2F3ED;border-radius:4px;padding:5px 8px;font:400 9px/1.6 Manrope,sans-serif}.ds-composer-controls small{margin-left:auto;color:var(--mw-muted, #687176);font:400 9px/1.6 Manrope,sans-serif}.ds-composer-send{display:grid;place-items:center;width:33px;height:33px;border:0;border-radius:6px;background:var(--mw-blue, #244ADA);color:#fff;padding:0;cursor:pointer}.ds-composer-send:hover{background:#183DBF}.ds-composer-send:focus-visible{outline:3px solid var(--mw-blue, #244ADA);outline-offset:4px}.ds-composer-controls select:focus{outline:2px solid var(--mw-blue, #244ADA);outline-offset:2px}@media(max-width:700px){.ds-composer-controls small{display:none}.ds-composer-controls select{flex:1}}"
+    },
+    {
+      "name": "Clasificación expandible",
+      "kind": "custom",
+      "refersTo": "classification",
+      "description": "Metadatos de la respuesta demostrativa en una franja de tono suave.",
+      "html": "<details class=\"ds-classification\"><summary><span class=\"ds-category-dot\" aria-hidden=\"true\"></span>Consulta general<span>Ver clasificación</span><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 9 7 7 7-7\"/></svg></summary><div class=\"ds-classification-body\"><p>Esta clasificación y sus valores pertenecen al ejemplo preescrito.</p><dl><div><dt>Confianza de ejemplo</dt><dd>98 %</dd></div><div><dt>Estado</dt><dd>Aceptada</dd></div></dl></div></details>",
+      "css": ".ds-classification{max-width:620px;border-top:1px solid #DBE1D2;border-bottom:1px solid #DBE1D2;color:#46533C;background:#F0F3E9;font-family:Manrope,sans-serif}.ds-classification summary{display:flex;align-items:center;gap:9px;padding:10px 12px;list-style:none;cursor:pointer;font:600 10px/1.6 Manrope,sans-serif}.ds-classification summary::-webkit-details-marker{display:none}.ds-classification summary>span:nth-last-child(2){margin-left:auto;font-size:9px;font-weight:400}.ds-classification[open] summary>svg{transform:rotate(180deg)}.ds-classification summary:focus-visible{outline:3px solid var(--mw-blue, #244ADA);outline-offset:4px}.ds-category-dot{width:5px;height:5px;flex-shrink:0;background:#607644;border-radius:50%}.ds-classification-body{border-top:1px solid #DBE1D2;padding:15px 17px 18px}.ds-classification-body p{font:400 10px/1.6 Manrope,sans-serif;margin:0 0 16px}.ds-classification-body dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:0;gap:12px 25px}.ds-classification-body dt{font-size:9px;color:#5D6A50}.ds-classification-body dd{font-size:10px;font-weight:600;margin:1px 0 0}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Cuaderno editorial contemporáneo",
+    "overview": "El mockup combina papel, tinta, una retícula editorial y fotografías de materiales cotidianos. La interfaz deja aire alrededor de las preguntas y usa el ultramar para orientar la acción; la lima señala aperturas, estados y detalles puntuales. La voz conserva el trato de vos y acompaña el principio de que las decisiones personales pertenecen al usuario.\n\nEste registro describe la implementación en `front/src/mockup/` y `front/public/mockup/`. Es una propuesta para revisar, desarrollada con la hipótesis editorial anunciada; no registra una aprobación del usuario ni autoriza reemplazar la identidad de la aplicación original. El documento histórico `apartadoDIseñoGraficoBlocIA.md`, las páginas funcionales previas y sus activos permanecen como fuentes separadas. La revisión externa de cierre confirmó las tres correcciones revisadas: separación de palabras en titulares móviles, reinicio del scroll al cambiar de vista y aislamiento de la carga del mockup respecto de la aplicación original. Se comprobó esa tanda de cambios y el build final; esto no registra aprobación humana ni afirma ausencia de defectos en toda la superficie.",
+    "keyCharacteristics": [
+      "Papel claro, tinta grafito y acentos de ultramar y lima.",
+      "Manrope para orientación; Lora para titulares del espacio personal y pasajes editoriales.",
+      "Filas y divisores finos, superficies suaves y profundidad contenida.",
+      "Logo de bloques e imágenes físicas que relacionan pensar con construir.",
+      "Movimiento de lectura acotado, navegación explícita y datos de demostración visibles."
+    ],
+    "rules": [
+      {
+        "name": "The Action Rule",
+        "body": "El ultramar identifica acciones y foco; la lima funciona como acento de contexto y como contraste sobre tinta.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Voices Rule",
+        "body": "Manrope organiza la interfaz y el transcript; Lora introduce pausa editorial en los titulares y ejemplos donde ya se utiliza.",
+        "section": "typography"
+      },
+      {
+        "name": "The Reading Rule",
+        "body": "El movimiento acompaña la posición de lectura y mantiene los controles operables; con `prefers-reduced-motion` se desactivan animaciones, transiciones, parallax y desplazamiento suave.",
+        "section": "layout"
+      },
+      {
+        "name": "The Quiet Depth Rule",
+        "body": "Las filas de historial, catálogo, actividad y preguntas frecuentes se distinguen con divisores; las sombras se reservan para las dos superficies que ya las usan.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** conservar los ámbitos de tokens de landing y workspace cuando se extienda el mockup.",
+      "**Do** usar las fuentes locales, incluida Lora Italic para la cursiva editorial.",
+      "**Do** mantener divisores, aire y ancho de lectura en conversación, historial y catálogo.",
+      "**Do** acompañar categorías, estado y procedencia de demostración con texto.",
+      "**Do** respetar reduced-motion y ofrecer los mismos controles en móvil y teclado."
+    ],
+    "donts": [
+      "**Don't** presentar esta propuesta como identidad aprobada o reemplazo de las páginas originales.",
+      "**Don't** convertir los metadatos de 8–10px observados en un tamaño universal para lectura.",
+      "**Don't** extender el parallax o las animaciones de lectura a formularios o composición de mensajes.",
+      "**Don't** representar datos de ejemplo, credenciales descartadas o respuestas preescritas como actividad real."
+    ]
+  }
+}

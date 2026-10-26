@@ -1,0 +1,87 @@
+/* Shared interaction rules preserve BloqIA's editorial type and palette. */
+:root {
+  --motion-press: 120ms;
+  --motion-ease-out: cubic-bezier(.23, 1, .32, 1);
+  --motion-route: 160ms;
+  --motion-disclosure: 200ms;
+}
+
+/* Navigation fades between complete views. No movement is imposed on peer sections. */
+.route-view { min-width: 0; }
+.route-view h1[tabindex="-1"]:focus { outline: none; }
+::view-transition { pointer-events: none; }
+::view-transition-group(root) { animation: none; }
+::view-transition-old(root) { animation: route-leave var(--motion-route) var(--motion-ease-out) both; }
+::view-transition-new(root) { animation: route-enter var(--motion-route) var(--motion-ease-out) both; }
+@keyframes route-leave { to { opacity: 0; } }
+@keyframes route-enter { from { opacity: 0; } }
+
+.animated-disclosure { display: flow-root; overflow: hidden; }
+.animated-disclosure[hidden] { display: none; }
+.mk-site .mk-conversation-body { animation: none; }
+.mk-site section[id] { scroll-margin-block-start: 24px; }
+.mk-faq-item button > svg { transition: transform var(--motion-disclosure) var(--motion-ease-out); }
+.mk-faq-item button[aria-expanded="true"] > svg { transform: rotate(45deg); }
+html[data-input-method="keyboard"] { scroll-behavior: auto; }
+html[data-input-method="keyboard"] .mk-faq-item button > svg { transition: none; }
+
+body { font-optical-sizing: auto; }
+input, textarea { caret-color: var(--color-azul); }
+.mobile-sheet, .auth-main { text-underline-offset: .2em; }
+.mobile-sheet :is(button, a, input, select, textarea, summary):focus-visible,
+.bloq-bottom-nav a:focus-visible {
+  outline: 3px solid var(--color-azul);
+  outline-offset: 3px;
+}
+.mobile-sheet :is(input, select, textarea) { scroll-margin-block: 16px; }
+.mobile-sheet-content h3 { font-size: 1rem; line-height: 1.4; letter-spacing: -.015em; margin: 1.5em 0 .5em; }
+.mobile-sheet-content > h3:first-child { margin-top: .25em; }
+.mobile-sheet-heading { flex-shrink: 0; }
+.mobile-sheet-heading h2 { font-size: 1.625rem; overflow-wrap: anywhere; }
+.mobile-sheet-content > p { font-size: .875rem; }
+
+/* Discrete actions acknowledge the press; frequently used navigation stays still. */
+.bloq-button, button[data-primary="true"], .auth-google-button,
+.mobile-sheet-primary, .mobile-sheet-secondary, .mobile-sheet-heading button,
+.auth-password-field button, .chat-send, .chat-model-trigger, .chat-composer-info,
+.mk-button {
+  touch-action: manipulation;
+  transition: background-color 150ms var(--motion-ease-out), border-color 150ms var(--motion-ease-out), scale var(--motion-press) var(--motion-ease-out);
+}
+:is(.bloq-button, button[data-primary="true"], .auth-google-button,
+  .mobile-sheet-primary, .mobile-sheet-secondary, .mobile-sheet-heading button,
+  .auth-password-field button, .chat-send, .chat-model-trigger, .chat-composer-info,
+  .mk-button):not(:disabled):not([aria-disabled="true"]):active {
+  scale: .97;
+  transform: none;
+}
+.mobile-sheet-heading button:hover, .auth-password-field button:hover { background: var(--color-papel); }
+
+@media (hover: none) {
+  :is(.bloq-button, button[data-primary="true"], .mk-button):hover { transform: none; }
+}
+
+@media (pointer: coarse) {
+  .bloq-mobile-account { width: 44px; height: 44px; }
+  .bloq-mobile-back, .bloq-menu-button, .mk-menu { min-width: 44px; min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  .mk-faq-item button > svg { transition: none; }
+  :is(.bloq-button, button[data-primary="true"], .auth-google-button,
+    .mobile-sheet-primary, .mobile-sheet-secondary, .mobile-sheet-heading button,
+    .auth-password-field button, .chat-send, .chat-model-trigger, .chat-composer-info,
+    .mk-button):active { scale: 1; }
+}
+
+@media (prefers-contrast: more) {
+  .mobile-sheet, .chat-composer, .auth-form :is(input, select) { border-color: var(--color-grafito); }
+  .mobile-sheet-handle { background: var(--color-grafito); }
+  .mobile-sheet::backdrop { opacity: .65; }
+}
+
+@media (forced-colors: active) {
+  .mobile-sheet { border: 1px solid CanvasText; }
+  .mobile-sheet-handle { background: ButtonText; }
+}

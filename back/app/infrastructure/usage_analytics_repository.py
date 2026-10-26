@@ -8,7 +8,8 @@ import time
 USAGE_WINDOW_SECONDS = 24 * 60 * 60
 USAGE_LIMIT_SECONDS = 3 * 60 * 60
 PERSONAL_QUESTION_LIMIT = 3
-DEFAULT_LOCK_DURATION_MINUTES = 24 * 60
+# Short verification interval; set BLOCIA_LOCK_MINUTES=1440 for a daily pause.
+DEFAULT_LOCK_DURATION_MINUTES = 1
 LIMIT_REASONS = {
     "usage_time": "Alcanzaste el límite de 3 horas de uso de IA.",
     "personal_questions": "Alcanzaste el límite de 3 consultas personales durante las últimas 24 horas.",
@@ -80,7 +81,15 @@ class UsageAnalyticsRepository:
         now = time.time() if now is None else now
         duration_minutes = lock_duration_minutes()
         with self.database.transaction():
+            self.lock_account(mail)
             rows = self.database.query("SELECT lock_until,reasons,updated_at FROM user_usage_locks WHERE user_mail=?", (mail,))
+            if rows:
+                # A shorter configured pause also applies to existing locks,
+                # measured from their original start, never from this request.
+                shortened_until = float(rows[0]["updated_at"]) + duration_minutes * 60
+                if shortened_until < float(rows[0]["lock_until"]):
+                    self.database.execute("UPDATE user_usage_locks SET lock_until=? WHERE user_mail=?", (shortened_until, mail))
+                    rows = self.database.query("SELECT lock_until,reasons,updated_at FROM user_usage_locks WHERE user_mail=?", (mail,))
             active = bool(rows and float(rows[0]["lock_until"]) > now)
             if active:
                 duration_minutes = max(1, round((float(rows[0]["lock_until"]) - float(rows[0]["updated_at"])) / 60))
@@ -129,6 +138,7 @@ class UsageAnalyticsRepository:
     def dashboard(self, mail, limit=40, offset=0, now=None):
         now = time.time() if now is None else now
         lock = self.current_lock(mail, now)
+        lock["serverTime"] = _iso(now)
         message_label = self._label("messages.classification")
         question_label = self._label("question.classification")
         day_expression = ("TO_CHAR(TO_TIMESTAMP(turns.completed_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD')"

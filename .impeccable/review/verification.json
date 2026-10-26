@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "checks": [
+    "Native scroll chapters update the demonstration",
+    "Personal decision response, expanded classification and low-confidence state",
+    "History creates, opens and deletes demo conversations with confirmation",
+    "Profile validates age, saves display name/profession and protects account email",
+    "Provider connections discard keys, clear fields, update model choices and recover catalog errors",
+    "Activity responds to conversations, catalog updates and provider connections",
+    "Registration validation and Google profile completion work without real authentication",
+    "All eight internal views fit 390px and mobile navigation works"
+  ],
+  "errors": [],
+  "apiRequests": []
+}

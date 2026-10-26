@@ -108,7 +108,7 @@ def test_rechecking_limits_keeps_original_expiry_and_combines_reasons(usage, mon
     assert combined["lockUntil"] == initial["lockUntil"]
 
 
-def test_active_lock_keeps_original_duration_after_configuration_changes(usage, monkeypatch):
+def test_shorter_configuration_shortens_existing_lock_from_original_start(usage, monkeypatch):
     monkeypatch.setenv("BLOCIA_LOCK_MINUTES", "5")
     analytics, _ = usage
     for index in range(3):
@@ -117,9 +117,11 @@ def test_active_lock_keeps_original_duration_after_configuration_changes(usage, 
 
     monkeypatch.setenv("BLOCIA_LOCK_MINUTES", "2")
     active = analytics.current_lock(MAIL, NOW + 10)
-    assert active["lockUntil"] == initial["lockUntil"]
-    assert active["lockDurationMinutes"] == 5
-    unlocked = analytics.current_lock(MAIL, NOW + 300)
+    assert datetime.fromisoformat(active["lockUntil"]).timestamp() == NOW + 120
+    assert active["lockUntil"] != initial["lockUntil"]
+    assert active["lockDurationMinutes"] == 2
+    assert analytics.current_lock(MAIL, NOW + 119)["blocked"] is True
+    unlocked = analytics.current_lock(MAIL, NOW + 120)
     assert unlocked["blocked"] is False
     assert unlocked["lockDurationMinutes"] == 2
 
@@ -154,4 +156,32 @@ def test_unblocked_allowance_still_uses_rolling_24_hour_window(usage):
     assert lock["blocked"] is False
     assert lock["personalQuestions"] == 1
     assert lock["personalQuestionsRemaining"] == 2
-    assert lock["lockDurationMinutes"] == 1440
+    assert lock["lockDurationMinutes"] == DEFAULT_LOCK_DURATION_MINUTES
+
+
+def test_reducing_daily_pause_releases_old_lock_without_erasing_history(usage, monkeypatch):
+    monkeypatch.setenv("BLOCIA_LOCK_MINUTES", "1440")
+    analytics, _ = usage
+    for index in range(3):
+        complete_turn(usage, NOW - 3 + index)
+    analytics.apply_limits(MAIL, NOW)
+
+    monkeypatch.setenv("BLOCIA_LOCK_MINUTES", "1")
+    unlocked = analytics.current_lock(MAIL, NOW + 61)
+    assert unlocked["blocked"] is False
+    assert unlocked["personalQuestionsRemaining"] == 3
+    assert analytics.dashboard(MAIL, now=NOW + 62)["summary"]["totalQueries"] == 3
+    assert analytics.current_lock(MAIL, NOW + 90)["blocked"] is False
+    assert len(analytics.database.query("SELECT * FROM user_usage_resets")) == 1
+
+
+def test_increasing_pause_does_not_extend_an_existing_lock(usage, monkeypatch):
+    monkeypatch.setenv("BLOCIA_LOCK_MINUTES", "1")
+    analytics, _ = usage
+    for index in range(3):
+        complete_turn(usage, NOW - 3 + index)
+    initial = analytics.apply_limits(MAIL, NOW)
+
+    monkeypatch.setenv("BLOCIA_LOCK_MINUTES", "1440")
+    assert analytics.current_lock(MAIL, NOW + 10)["lockUntil"] == initial["lockUntil"]
+    assert analytics.current_lock(MAIL, NOW + 60)["blocked"] is False

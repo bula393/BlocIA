@@ -52,7 +52,7 @@ En la pestaña **Environment** de cada Application, agregá las variables de run
 | `back` | `ACCESS_TOKEN_SECRET` | Secreto aleatorio de al menos 32 caracteres |
 | `back` | `DATABASE_URL` | **Internal Connection URL** que muestra el recurso PostgreSQL de Dokploy |
 | `back` | `BLOCIA_ENCRYPTION_KEY` | Clave Fernet aleatoria; necesaria para cifrar los tokens de proveedores guardados por la app |
-| `back` | `BLOCIA_LOCK_MINUTES` | Minutos de bloqueo deseados; `1440` equivale a un día |
+| `back` | `BLOCIA_LOCK_MINUTES` | Minutos de bloqueo; `1` para comprobar el reinicio, `1440` para un día. Si ya está configurada en Dokploy, cambiarla allí y redesplegar |
 | `back` | `BLOCIA_INFERENCE_URL` | `http://blocia-clasificador-nrn9qa:8001` |
 | `back` | `BLOCIA_INFERENCE_TOKEN` | Secreto aleatorio compartido con `clasificador` |
 | `front` | `PORT` | `60001` |

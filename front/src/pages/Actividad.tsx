@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getUsageDashboard, type UsageDashboard } from '../api/usage';
 import { ChasisBloqIA } from '../components/chasis/ChasisBloqIA';
 import { Icon } from '../mockup/brand';
+import { useUsageLockRefresh } from '../features/chat/useUsageLockRefresh';
 
 const pageSize = 40;
 const categories: Array<{ id: string; name: string; color: string }> = [
@@ -49,6 +50,7 @@ export function Actividad() {
   const [offset, setOffset] = useState(0);
   const [activity, setActivity] = useState<UsageDashboard['activity']['items']>([]);
   const dashboard = useQuery({ queryKey: ['usage-dashboard', offset], queryFn: ({ signal }) => getUsageDashboard(pageSize, offset, signal), retry: false, refetchInterval: 30_000, placeholderData: (previous) => previous });
+  useUsageLockRefresh(dashboard.data?.limits, dashboard.dataUpdatedAt, dashboard.refetch);
 
   useEffect(() => {
     const page = dashboard.data?.activity;

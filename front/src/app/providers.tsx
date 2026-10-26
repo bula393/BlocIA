@@ -10,6 +10,7 @@ import '../tokens/inicio.css';
 import '../tokens/brand.css';
 import '../tokens/workspace.css';
 import '../tokens/mobile.css';
+import '../tokens/interaction.css';
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);

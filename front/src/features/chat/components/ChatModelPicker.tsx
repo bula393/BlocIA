@@ -29,8 +29,8 @@ export function ChatModelPicker({ chat }: { chat: ChatController }) {
   }, [modelOptions, query]);
 
   useEffect(() => {
-    if (open) searchRef.current?.focus();
-  }, [open]);
+    if (open && !mobile) searchRef.current?.focus();
+  }, [open, mobile]);
 
   useEffect(() => {
     if (disabled) {
@@ -49,7 +49,7 @@ export function ChatModelPicker({ chat }: { chat: ChatController }) {
       }
     }
     function onKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !mobile) {
         event.preventDefault();
         setOpen(false);
         setQuery('');

@@ -5,6 +5,7 @@ import { getUsageLimits } from '../../api/usage';
 import { listAvailableModels, listTechnicalProviders } from '../../api/technicalProfile';
 
 import { providerLabel } from './helpers';
+import { useUsageLockRefresh } from './useUsageLockRefresh';
 import { DEFAULT_CHAT_MODEL, isDefaultChatModel, readModelPreference, saveModelPreference } from './modelPreference';
 import type { ChatModelOption, MessageRequest, PendingConfirmation } from './types';
 
@@ -82,13 +83,7 @@ export function useChatController() {
     return [`${provider.name}: ${reason}`];
   });
 
-  useEffect(() => {
-    if (!usageLock?.blocked || !usageLock.lockUntil) return;
-    const unlockAt = Date.parse(usageLock.lockUntil);
-    if (!Number.isFinite(unlockAt)) return;
-    const timer = window.setTimeout(() => void usageLockQuery.refetch(), Math.min(2_147_483_647, Math.max(0, unlockAt - Date.now()) + 100));
-    return () => window.clearTimeout(timer);
-  }, [usageLock?.blocked, usageLock?.lockUntil, usageLockQuery.refetch]);
+  useUsageLockRefresh(usageLock, usageLockQuery.dataUpdatedAt, usageLockQuery.refetch);
 
   useEffect(() => {
     if (confirmation && !sending) confirmButton.current?.focus();

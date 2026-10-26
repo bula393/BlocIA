@@ -17,7 +17,7 @@ export interface ConversationDetail { conversation: Conversation; messages: Mess
 export interface PersonalResponseConfirmation { conversation: Conversation; messages: Message[]; confirmationRequired: true; classification: Classification; usageLock: UsageLock }
 export type MessageResult = ConversationDetail | PersonalResponseConfirmation;
 export interface ChatProgress { phase: 'classifying' | 'generating'; state: 'pending' | 'completed' | 'failed' }
-export interface UsageLock { blocked: boolean; reasonCodes: Array<'usage_time' | 'personal_questions'>; lockUntil: string | null; usageSeconds: number; usageLimitSeconds: number; personalQuestions: number; personalQuestionLimit: number; lockDurationMinutes?: number; personalQuestionsRemaining?: number }
+export interface UsageLock { serverTime?: string; blocked: boolean; reasonCodes: Array<'usage_time' | 'personal_questions'>; lockUntil: string | null; usageSeconds: number; usageLimitSeconds: number; personalQuestions: number; personalQuestionLimit: number; lockDurationMinutes?: number; personalQuestionsRemaining?: number }
 export interface ChatStatus { ready: boolean; classifierReady: boolean; mode: 'classification'; model: string; maxInputCharacters: number; usageLock?: UsageLock; freeModels?: Array<{ providerId: string; providerName: string; modelId: string; displayName: string }>; training: { examples: number | null; macroF1: number | null; decisionRecall: number | null } }
 
 export const getChatStatus = (signal?: AbortSignal) => apiRequest<ChatStatus>('/api/chat/status', { signal });

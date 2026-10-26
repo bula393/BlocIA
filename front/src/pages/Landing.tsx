@@ -3,6 +3,8 @@ import { Brand, Icon } from '../mockup/brand';
 import '../mockup/mockup.css';
 import { useMobileViewport } from '../components/mobile/useMobileViewport';
 import { MobileSheet } from '../components/mobile/MobileSheet';
+import { AnimatedDisclosure } from '../components/AnimatedDisclosure';
+import { useContentTransition } from '../components/useContentTransition';
 
 export type LandingAction = 'chat' | 'profile' | 'providers' | 'usage' | 'login' | 'register' | 'google';
 const stages = [
@@ -18,6 +20,8 @@ export function Landing({ open, isAuthenticated = false }: { open: (view: Landin
   const mobile = useMobileViewport();
   const root = useRef<HTMLDivElement>(null);
   const heroImage = useRef<HTMLImageElement>(null);
+  const example = useRef<HTMLDivElement>(null);
+  useContentTransition(example, stage);
 
   useEffect(() => {
     let frame = 0;
@@ -100,7 +104,7 @@ export function Landing({ open, isAuthenticated = false }: { open: (view: Landin
           <div className="mk-demo-sticky">
             <div className="mk-conversation" aria-label="Ejemplo de conversación según el recorrido">
               <header><Brand compact /><span>Una idea en construcción</span><span className="mk-demo-note">Ejemplo</span></header>
-              <div className="mk-conversation-body" key={stage}>
+              <div className="mk-conversation-body" ref={example}>
                 <span className="mk-dialog-author">Vos</span><p className="mk-dialog-question">{stages[stage].prompt}</p>
                 <div className="mk-classify-result"><span className={`mk-status-dot${stage === 2 ? ' mk-status-dot--attention' : ''}`} />{stage === 0 ? 'Consulta general' : stages[stage].label}<span>Clasificación</span></div>
                 <div className="mk-dialog-answer"><div className="mk-dialog-brand"><Brand compact /><strong>BloqIA</strong></div><p>{stages[stage].result}</p>{stage === 2 && <span className="mk-human-note"><Icon name="shield" size={16} /> Tu decisión, tu criterio.</span>}</div>
@@ -133,14 +137,13 @@ export function Landing({ open, isAuthenticated = false }: { open: (view: Landin
         <div className="mk-criterion-copy"><h2 id="criterion-title">La inteligencia<br />suma.<br /><em>Tu criterio guía.</em></h2><p>La idea no es pensar menos.<br />Es pensar mejor.</p><p className="mk-criterion-detail">BloqIA te acompaña con información y contexto. Las decisiones personales merecen una pausa, una mirada propia y, cuando hace falta, la orientación de otra persona.</p><a className="mk-text-link" href="#preguntas">Conocé cómo cuidamos ese espacio <Icon name="arrow" size={18} /></a><div className="mk-principle"><Icon name="shield" size={20} /><span>Las decisiones personales no se envían al generador.</span></div></div>
       </section>
 
-      <section className="mk-faq" id="preguntas" aria-labelledby="faq-title"><h2 id="faq-title">Antes de empezar.</h2><div className="mk-faq-list">{faqs.map(([question, answer], i) => <div className="mk-faq-item" key={question}><h3><button aria-expanded={faq === i} aria-controls={`mk-faq-${i}`} onClick={() => setFaq(faq === i ? null : i)}>{question}<Icon name={faq === i ? 'close' : 'plus'} size={20} /></button></h3><div id={`mk-faq-${i}`} hidden={faq !== i}><p>{answer}</p></div></div>)}</div></section>
+      <section className="mk-faq" id="preguntas" aria-labelledby="faq-title"><h2 id="faq-title">Antes de empezar.</h2><div className="mk-faq-list">{faqs.map(([question, answer], i) => <div className="mk-faq-item" key={question}><h3><button aria-expanded={faq === i} aria-controls={`mk-faq-${i}`} onClick={() => setFaq(faq === i ? null : i)}>{question}<Icon name="plus" size={20} /></button></h3><AnimatedDisclosure id={`mk-faq-${i}`} open={faq === i}><p>{answer}</p></AnimatedDisclosure></div>)}</div></section>
 
       <section className="mk-closing" aria-labelledby="closing-title"><div><h2 id="closing-title">Tu próxima idea<br />empieza <em>acá.</em></h2><button className="mk-button mk-button--light" onClick={() => open('chat')}>Empezá una conversación <Icon name="arrow" /></button></div><span className="mk-closing-mark" aria-hidden="true"><Brand compact /></span><p>Traé una pregunta.<br />Llevate otra perspectiva.</p></section>
     </main>
     {mobile && <div className="mk-mobile-dock"><button type="button" className="mk-button" onClick={() => open('chat')}>Abrí tu espacio<Icon name="arrow" size={19} /></button></div>}
 
-    <footer className="mk-footer"><div className="mk-footer-top"><div><Brand /><p>Un espacio para pensar con criterio.</p></div><div className="mk-footer-links"><div><strong>Tu espacio</strong><button onClick={() => open('chat')}>Chat y conversaciones</button><button onClick={() => open('providers')}>Proveedores y modelos</button></div><div><strong>Tu cuenta</strong><button onClick={() => open('profile')}>Perfil</button><button onClick={() => open('usage')}>Actividad</button><button onClick={() => open('login')}>Iniciar sesión</button><button onClick={() => open('register')}>Crear cuenta</button></div><div><strong>Explorá</strong><a href="#metodo">Cómo funciona</a><a href="#criterio">Tu criterio</a><a href="#identidad">La identidad</a><button onClick={() => open('google')}>Acceso con Google</button></div></div></div>
-      <div className="mk-brand-system" id="identidad"><div><strong>Una identidad que se construye.</strong><p>Bloques que conectan. Tinta para pensar. Papel para leer.</p><a href="/mockup/logo.svg" download="bloqia-logo.svg">Descargar logo SVG <Icon name="arrow-up" size={14} /></a></div><div className="mk-palette" aria-label="Paleta de identidad"><div><span style={{ background: '#18252B' }} /><strong>Tinta</strong><code>#18252B</code></div><div><span style={{ background: '#F4F3EE' }} /><strong>Papel</strong><code>#F4F3EE</code></div><div><span style={{ background: '#244ADA' }} /><strong>Ultramar</strong><code>#244ADA</code></div><div><span style={{ background: '#DAED9E' }} /><strong>Idea</strong><code>#DAED9E</code></div></div></div>
+    <footer className="mk-footer"><div className="mk-footer-top"><div><Brand /><p>Un espacio para pensar con criterio.</p></div><div className="mk-footer-links"><div><strong>Tu espacio</strong><button onClick={() => open('chat')}>Chat y conversaciones</button><button onClick={() => open('providers')}>Proveedores y modelos</button></div><div><strong>Tu cuenta</strong><button onClick={() => open('profile')}>Perfil</button><button onClick={() => open('usage')}>Actividad</button><button onClick={() => open('login')}>Iniciar sesión</button><button onClick={() => open('register')}>Crear cuenta</button></div><div><strong>Explorá</strong><a href="#metodo">Cómo funciona</a><a href="#criterio">Tu criterio</a><button onClick={() => open('google')}>Acceso con Google</button></div></div></div>
       <div className="mk-footer-bottom"><span>© 2026 BloqIA</span><span>Un espacio para pensar con criterio.</span><a href="#contenido">Volver arriba <Icon name="arrow-up" size={14} /></a></div>
     </footer>
   </div>;

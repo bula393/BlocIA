@@ -137,7 +137,7 @@ Variables de persistencia: `BLOCIA_DATABASE_PATH` y `BLOCIA_DATA_PATH` se usan e
 
 En desarrollo, completá los tokens predeterminados de `back/.env.dev`; en una instalación nueva, copialo desde `back/.env.dev.example`. Reiniciá el backend para aplicar los cambios. Las claves personales de cada usuario tienen prioridad; los valores globales nunca se devuelven al navegador. El catálogo de OpenRouter sigue limitado a modelos gratuitos.
 
-`BLOCIA_LOCK_MINUTES` configura la duración del bloqueo en minutos enteros positivos; el valor predeterminado es `1440` (24 horas). Los límites siguen siendo 3 consultas personales y 3 horas de uso de IA en una ventana móvil de 24 horas. Cuando vence un bloqueo, comienza un nuevo cupo sin borrar los chats ni las métricas históricas. Un valor vacío, inválido o no positivo conserva la duración predeterminada.
+`BLOCIA_LOCK_MINUTES` configura la duración del bloqueo en minutos enteros positivos; el valor predeterminado temporal es `1` (1 minuto) para comprobar el desbloqueo; para una pausa diaria, usá `1440`. Los límites siguen siendo 3 consultas personales y 3 horas de uso de IA en una ventana móvil de 24 horas. Cuando vence un bloqueo, comienza un nuevo cupo sin borrar los chats ni las métricas históricas. Reducir este valor también acorta los bloqueos activos desde su inicio original. Aumentarlo no extiende los bloqueos ya creados. Un valor vacío, inválido o no positivo conserva la duración predeterminada.
 
 `GET /health` ejecuta comprobaciones de integridad y relaciones de la base. `GET /chat/status`, autenticado, informa la disponibilidad del clasificador y las métricas de entrenamiento.
 
