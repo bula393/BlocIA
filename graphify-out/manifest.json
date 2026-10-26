@@ -1416,10 +1416,10 @@
     "semantic_hash": ""
   },
   "front/tests/e2e/perfil-tecnico-visual.spec.ts": {
-    "mtime": 1791736196.330768,
-    "seen": 1791855401.8852944,
-    "ast_hash": "8d05140cdc95cf2da2f949965e9d3f14",
-    "semantic_hash": "8d05140cdc95cf2da2f949965e9d3f14"
+    "mtime": 1793024097.5094366,
+    "seen": 1793024193.658535,
+    "ast_hash": "dea07272f1d95191edb978e5e49f1c35",
+    "semantic_hash": ""
   },
   "front/tests/e2e/perfil-visual.spec.ts": {
     "mtime": 1790701651.261539,
@@ -1734,9 +1734,9 @@
     "semantic_hash": "779a7496aaa43bf2e76d3da3ac754544"
   },
   "DESIGN.md": {
-    "mtime": 1791857453.7053227,
-    "seen": 1791857480.3449795,
-    "ast_hash": "80885b8046d0cb2d303965b9d811bdec",
+    "mtime": 1793023642.1055007,
+    "seen": 1793024193.658535,
+    "ast_hash": "8155eacfadceca24ea68201a9dc3ca4d",
     "semantic_hash": ""
   },
   "PRODUCT.md": {
