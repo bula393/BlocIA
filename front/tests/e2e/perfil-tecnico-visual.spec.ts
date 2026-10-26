@@ -65,6 +65,8 @@ test('technical profile verifies email before connecting a personal key on deskt
   await expect(save).toBeDisabled();
   expect(saves).toBe(0);
   await page.getByRole('button', { name: 'Cerrar panel', exact: true }).click();
+  // The background stays inert until the sheet's exit animation completes.
+  await expect(page.getByRole('dialog', { name: 'Groq', exact: true })).not.toBeVisible();
   await code.fill('123456');
   await page.getByRole('button', { name: 'Verificar correo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Correo verificado', exact: true })).toBeVisible();
